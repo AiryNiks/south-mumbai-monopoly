@@ -1,215 +1,152 @@
-# South Mumbai Monopoly Game
+# South Mumbai Business Game 🏙️
 
-> A Business Board Game Set in Historic South Mumbai with British Colonial Heritage
+> A high-stakes Monopoly-style board game set in South Mumbai's most iconic neighbourhoods — built entirely with vanilla JavaScript, HTML5, and CSS3.
 
-## 🎮 Game Overview
+---
 
-**South Mumbai Monopoly** is a complete implementation of the classic Monopoly game, reimagined with locations from historic South Mumbai and authentic British colonial-era place names.
+## 🎮 Overview
 
-### Key Features
+South Mumbai Business Game reimagines the classic property trading board game with real locations from South Mumbai. Buy Colaba Causeway, build offices on Marine Drive, charge rent on Nepean Sea Road, and bankrupt your rivals in the most expensive square mile in India.
 
-✅ **40 Board Spaces** - Classic Monopoly board layout  
-✅ **28 Properties** - Real South Mumbai locations with British historical names  
-✅ **4 Railway Stations** - Famous Mumbai railway terminals  
-✅ **2 Utilities** - Public service providers  
-✅ **8 Property Groups** - Standard color groupings  
-✅ **Chance & Community Chest** - 16 cards each with game events  
-✅ **Complete Game Engine** - Full Python implementation  
-✅ **Web Interface** - Play in your browser  
+- **Players:** 2–4
+- **Starting Cash:** ₹500 Lakhs (₹5 Crores) per player
+- **Currency:** Indian Lakhs (₹L) — all values in Lakhs
+- **Goal:** Be the last player standing by bankrupting everyone else
 
-## 🏛️ South Mumbai Locations
+---
 
-### British Colonial Heritage
-All locations feature authentic British names from the colonial era:
+## 🗺️ The Board
 
-| Property Type | Examples |
-|---|---|
-| **Streets** | Grant Road, Fort Street, Strand Road, Esplanade |
-| **Landmarks** | Flora Fountain (King George Circle), Kala Ghoda, Oval Maidan |
-| **Railways** | Victoria Terminus (Central Station), Churchgate, Grant Road Station |
-| **Historic Areas** | Horniman Circle, Apollo Bunder, The Esplanade |
+40 spaces arranged in an 11×11 CSS grid, clockwise from GO:
 
-## 📚 Documentation
+| Corner | Description |
+|--------|-------------|
+| GO (pos 0) | Collect ₹20L each time you pass or land |
+| Traffic Jam (pos 10) | Jail — stuck in Pedder Road traffic |
+| Sea View Terrace (pos 20) | Free Parking — no action |
+| No-Parking Zone (pos 30) | Go directly to Traffic Jam |
 
-- **[QUICK_START.md](QUICK_START.md)** - Get started in 10 minutes
-- **[rules.md](rules.md)** - Complete game rules and mechanics
-- **[PROPERTY_REFERENCE.md](PROPERTY_REFERENCE.md)** - All properties, prices, and rent
-- **[LOCATIONS_REFERENCE.py](LOCATIONS_REFERENCE.py)** - Historical information about locations
+---
 
-## 🚀 Quick Start
+## 🏠 Properties at a Glance
 
-### Option 1: Play Online (No Installation)
-1. Open `ui.html` in your web browser
-2. Click "Roll Dice" to start playing
-3. Buy properties and build your empire!
+| Colour | Properties | Price Range | Office Cost | HQ Cost |
+|--------|-----------|-------------|-------------|---------|
+| 🟤 Brown | Colaba Causeway, Crawford Market | ₹60L | ₹5L | ₹20L |
+| 🔵 Light Blue | Flora Fountain, Horniman Circle, Apollo Bunder | ₹100–120L | ₹5L | ₹20L |
+| 🩷 Pink | Grant Road, Esplanade, Fort Street | ₹140–160L | ₹10L | ₹30L |
+| 🟠 Orange | Strand Road, Ballard Pier, Princess Street | ₹180–200L | ₹10L | ₹30L |
+| 🔴 Red | Kala Ghoda, Marine Drive, Worli Sea Face | ₹220–240L | ₹15L | ₹40L |
+| 🟡 Yellow | Nariman Point, Cuffe Parade, Pedder Road | ₹260–280L | ₹15L | ₹40L |
+| 🟢 Green | Malabar Hill, Breach Candy, Altamount Road | ₹300–320L | ₹20L | ₹50L |
+| 🔷 Dark Blue | Carmichael Road, Nepean Sea Road | ₹350–400L | ₹20L | ₹50L |
 
-### Option 2: Run Game Engine (Python)
-```bash
-python game_engine.py
-```
+Full rent tables in [PROPERTY_REFERENCE.md](PROPERTY_REFERENCE.md).
 
-## 💰 Game Basics
+---
 
-### Starting Setup
-- **Players**: 2-4
-- **Starting Money**: 1,500 MR (Mumbai Rupees) per player
-- **Goal**: Be the last player with money (make others bankrupt)
+## 🚉 Railway Stations
 
-### How to Play
-1. Roll dice and move around the board
-2. Buy properties you land on
-3. Collect rent from opponents
-4. Build houses and hotels for higher rent
-5. Trade properties strategically
-6. Win by bankrupting all other players!
+All four stations cost **₹200L** (mortgage ₹100L each).
 
-## 🎯 Property Groups & Pricing
+| Pos | Station |
+|-----|---------|
+| 5 | CSMT — UNESCO World Heritage terminus |
+| 14 | Churchgate — Western Railway southern terminus |
+| 25 | Marine Lines — near Oval Maidan |
+| 35 | Mumbai Central — long-distance & suburban hub |
 
-### All 28 Properties
-| Color | # Properties | Price Range | Strategy |
-|---|---|---|---|
-| Brown | 2 | 60 MR | Early game starter |
-| Light Blue | 3 | 100-120 MR | Easy to complete |
-| Pink | 3 | 140-160 MR | Medium difficulty |
-| Orange | 3 | 180-200 MR | Frequently landed on |
-| Red | 3 | 220-240 MR | High return potential |
-| Yellow | 3 | 260-280 MR | Late game investment |
-| Green | 3 | 300-320 MR | Premium properties |
-| Dark Blue | 2 | 350-400 MR | Most valuable |
+**Rent:** ₹25L (1 owned) → ₹50L (2) → ₹100L (3) → ₹200L (4)
 
-### Railways & Utilities
-- **4 Railway Stations**: 200 MR each, 25-200 MR rent
-- **2 Utilities**: 150 MR each, variable rent based on dice
+---
 
-## 📦 Project Files
+## ⚡ Utilities
+
+Both utilities cost **₹150L** (mortgage ₹75L each).
+
+| Pos | Utility |
+|-----|---------|
+| 12 | BEST Electricity |
+| 28 | Reliance Energy |
+
+**Rent:** 4× dice roll (1 owned) or 10× dice roll (2 owned)
+
+---
+
+## 🃏 Card Decks
+
+- **Mumbai Hustle** (Chance) — 16 cards at positions 7, 22, 33
+- **Townie Gossip** (Community Chest) — 16 cards at positions 2, 17
+
+Cards include: advance to GO, Sea Link Shortcut, Traffic Jam (go to jail), BMC repairs, Kala Ghoda Art Exhibition (collect from all players), and Get Out of Jail Free cards.
+
+---
+
+## 💰 Financial Rules
+
+| Rule | Value |
+|------|-------|
+| GO salary | ₹20L |
+| Jail bail | ₹5L |
+| Income Tax | ₹20L flat or 10% of assets (choose lower) |
+| Sea Link Toll | ₹7.5L |
+| BMC Luxury Cess | ₹10L |
+| Mortgage interest | 10% of mortgage value to unmortgage |
+| Bank loan max | 3 loans × ₹100L each |
+| Loan interest | 10% charged on each pass of GO |
+
+---
+
+## 🏗️ Buildings
+
+Properties must be in a **monopoly** (own all colours) before building. The even-building rule is enforced — you must build evenly across all properties in a group.
+
+- **Offices** (houses) — up to 4 per property
+- **HQ** (hotel) — replaces 4 offices; requires all group properties to have 4 offices first
+- Selling returns **50%** of build cost
+
+---
+
+## 🚀 How to Play
+
+1. Open `index.html` in any modern browser
+2. Set player count (2–4) and enter names
+3. Click **Start Game**
+4. Roll dice, buy properties, build offices, collect rent
+5. Use the Bank Loans button if you're short on cash
+6. Last player standing wins
+
+---
+
+## 🛠️ Tech Stack
+
+- **HTML5** — single `index.html` entry point
+- **CSS3** — dark navy / gold theme, 11×11 CSS grid board
+- **Vanilla JavaScript** — no frameworks, no build tools
+
+### File Structure
 
 ```
 south-mumbai-monopoly/
-├── README.md                 # This file
-├── QUICK_START.md           # Getting started guide
-├── rules.md                 # Complete game rules
-├── PROPERTY_REFERENCE.md    # Property pricing & details
-├── LOCATIONS_REFERENCE.py   # Historical location info
-├── board_layout.json        # Board configuration
-├── cards.json               # Card definitions
-├── game_engine.py           # Python game engine
-├── game.js                  # Browser game logic
-├── ui.html                  # Web interface
-└── styles.css               # UI styling
+├── index.html       — game entry point
+├── styles.css       — dark minimalist UI
+├── gameConfig.js    — all board data, prices, rents (edit here for customisation)
+├── cards.js         — Mumbai Hustle & Townie Gossip card decks
+├── bank.js          — Bank class (mortgages, loans, buildings, rent calculation)
+├── gameState.js     — turn state machine & game state singleton
+├── board.js         — board rendering & token/building display
+├── ui.js            — modals, player panels, dice animation, toasts
+└── main.js          — game controller & event wiring
 ```
 
-## 🛠️ Technology Stack
+---
 
-- **Python** - Backend game engine with complete mechanics
-- **HTML5** - Web-based game interface
-- **CSS3** - Responsive, modern styling
-- **JavaScript** - Client-side game logic and interactivity
+## 📝 Customisation
 
-## 📋 Game Rules Summary
+All game data lives in `gameConfig.js` — change property prices, rent tables, building costs, or card text there without touching any game logic.
 
-### Core Mechanics
-- Roll dice each turn
-- Move around the 40-space board
-- Buy unowned properties
-- Collect rent from opponents
-- Build houses and hotels
-- Trade properties with other players
-- Last player standing wins
-
-### Special Spaces
-- **Go** - Start, collect 200 MR
-- **Go to Jail** - Send to jail (3-turn limit)
-- **Free Parking** - Safe rest space
-- **Income Tax** - Pay 200 MR or 10% of assets
-- **Luxury Tax** - Pay 100 MR
-- **Chance** - Draw random event card
-- **Community Chest** - Draw opportunity card
-
-### Building
-- Monopoly: Own all properties of one color
-- House Cost: 50-200 MR (depends on color)
-- Hotel Cost: 200-500 MR (depends on color)
-- Max 4 houses per property, then convert to 1 hotel
-
-## 🎲 Gameplay Tips
-
-### Early Game
-- Buy brown properties for early income
-- Acquire railways when possible
-- Don't spend all your cash
-
-### Mid Game
-- Complete color groups to build
-- Build strategically on high-traffic areas
-- Block opponents from completing monopolies
-
-### Late Game
-- Build hotels aggressively
-- Manage cash carefully
-- Use mortgages for emergency cash
-
-## 🏃 Playing Quick Games
-
-Suggested house rules for faster games:
-1. Start with 1,200 MR instead of 1,500
-2. 10-minute timer per turn
-3. Build 2 houses per turn instead of 1
-4. Double rent when in jail
-
-## 🎓 Learning Resources
-
-- **Hasbro's Monopoly**: https://www.hasbro.com/en-us/products/classic-monopoly
-- **Official Rules**: See `rules.md`
-- **Strategy Guides**: See `QUICK_START.md`
-
-## 🎨 About South Mumbai Heritage
-
-South Mumbai represents one of the world's most significant examples of British colonial urban planning. The game celebrates:
-
-- **Historic Fort District** - Heart of colonial Mumbai
-- **Victorian Architecture** - Gothic and Victorian buildings
-- **British Landmarks** - Gates, stations, and monuments
-- **Colonial Street Names** - Named after British administrators
-- **Cultural Evolution** - From colonial center to modern arts hub
-
-## 📝 License & Attribution
-
-This game is inspired by the classic Monopoly board game.
-
-South Mumbai locations and historical information represent the city's rich heritage and colonial legacy.
-
-## 🤝 Contributing
-
-Found a bug? Have a suggestion? Feel free to:
-1. Report issues
-2. Suggest improvements
-3. Submit property names
-4. Add new features
-
-## 📞 Support
-
-For questions or issues:
-- Check the documentation files
-- Review QUICK_START.md for common questions
-- See rules.md for rule clarifications
+To add real photos, place images in an `images/` folder and update the `image:` field for each property in `gameConfig.js`.
 
 ---
 
-## 🎉 Ready to Play?
-
-**Start playing now!**
-1. Open `ui.html` in your browser
-2. OR run `python game_engine.py`
-3. Roll the dice and become a real estate mogul in South Mumbai!
-
-**Enjoy your game! 🏛️🎲🏠**
-
----
-
-*South Mumbai Monopoly - Where History Meets Business Strategy*
-
-**Created**: 2026-06-11  
-**Game Type**: Real Estate Trading Board Game  
-**Players**: 2-4  
-**Setup Time**: 10-15 minutes  
-**Play Time**: 60-180 minutes
+*South Mumbai Business Game — Where Heritage Meets High Stakes Real Estate*
