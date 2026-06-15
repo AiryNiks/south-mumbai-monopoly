@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>South Mumbai Business Game</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <!-- Google Fonts — Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SETUP SCREEN
+════════════════════════════════════════════════════════════ -->
+<div id="setupScreen">
+  <div class="setup-card">
+    <div class="setup-logo">
+      <h1>South Mumbai<br>Business Game</h1>
+      <p>Where Heritage Meets High Stakes Real Estate</p>
+    </div>
+
+    <div class="setup-field">
+      <label for="playerCount">Number of Players</label>
+      <select id="playerCount">
+        <option value="2">2 Players</option>
+        <option value="3">3 Players</option>
+        <option value="4" selected>4 Players</option>
+      </select>
+    </div>
+
+    <div class="setup-field">
+      <label>Player Names</label>
+      <div id="playerNameInputs"><!-- populated by main.js --></div>
+    </div>
+
+    <div class="setup-field" style="margin-top: 1rem;">
+      <p style="font-size:0.78rem; color:var(--text-muted); margin-bottom:0.75rem;">
+        Each player starts with <strong style="color:var(--gold)">₹500 Lakhs (₹5 Crores)</strong>.
+        Buy properties, build offices &amp; HQ, collect rent, and bankrupt your rivals!
+      </p>
+      <button id="btnStartGame" class="btn btn-primary btn-full btn-lg">Start Game 🎲</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     GAME SCREEN
+════════════════════════════════════════════════════════════ -->
+<div id="gameScreen" style="display:none">
+
+  <!-- LEFT SIDEBAR — players + log -->
+  <aside class="sidebar">
+    <div class="sidebar-header">Players</div>
+    <div id="playerPanels"><!-- built by UI.refresh() --></div>
+    <div class="sidebar-header" style="border-top:1px solid var(--border)">Game Log</div>
+    <div id="gameLog"></div>
+  </aside>
+
+  <!-- BOARD -->
+  <main id="boardContainer">
+    <div id="board">
+      <!-- 40 spaces + center panel built by Board.render() -->
+    </div>
+  </main>
+
+  <!-- RIGHT SIDEBAR — controls -->
+  <aside class="sidebar sidebar-right">
+    <!-- Current player strip -->
+    <div id="currentPlayerStrip">
+      <span class="cp-token">🎲</span>
+      <span class="cp-name">—</span>
+      <span class="cp-cash">₹—</span>
+    </div>
+
+    <!-- Phase label -->
+    <div id="phaseLabel">Waiting…</div>
+
+    <!-- Dice -->
+    <div id="diceArea">
+      <div class="die" id="die1">⚀</div>
+      <div class="die" id="die2">⚀</div>
+    </div>
+
+    <!-- Action buttons -->
+    <div id="actionButtons">
+      <button id="btnRoll"     class="btn btn-primary btn-full">🎲 Roll Dice</button>
+      <button id="btnBail"     class="btn btn-full">🚦 Pay ₹5L Bail</button>
+      <button id="btnJailCard" class="btn btn-full">🎟 Use Jail Free Card</button>
+      <button id="btnEndTurn"  class="btn btn-secondary btn-full" disabled>⏭ End Turn</button>
+    </div>
+
+    <!-- Shortfall panel -->
+    <div id="shortfallPanel">
+      <h4>⚠️ Shortfall!</h4>
+      <p>You need <strong id="shortfallAmount">₹—</strong> more.</p>
+      <p style="font-size:0.72rem;color:var(--text-muted);margin-top:0.3rem">
+        Click a property you own to mortgage it, or sell buildings.
+      </p>
+    </div>
+
+    <!-- Management tools -->
+    <div id="managementTools">
+      <div class="manage-label">Finance</div>
+      <button id="btnLoan" class="btn btn-secondary btn-full">🏦 Bank Loans</button>
+    </div>
+  </aside>
+
+</div><!-- #gameScreen -->
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     MODALS
+════════════════════════════════════════════════════════════ -->
+
+<!-- Property detail modal -->
+<div class="modal-backdrop" id="modalDetail" aria-hidden="true">
+  <div class="modal-box">
+    <div id="modalDetailBody"><!-- built by UI.showSpaceDetail() --></div>
+  </div>
+</div>
+
+<!-- Buy / Auction decision modal -->
+<div class="modal-backdrop" id="modalBuy" aria-hidden="true">
+  <div class="modal-box">
+    <div id="modalBuyBody"><!-- built by UI.showBuyDecision() --></div>
+    <div class="modal-actions">
+      <button id="btnBuyProperty"    class="btn btn-primary">🏠 Buy</button>
+      <button id="btnAuctionProperty" class="btn btn-secondary">🔨 Auction</button>
+    </div>
+  </div>
+</div>
+
+<!-- Auction modal -->
+<div class="modal-backdrop" id="modalAuction" aria-hidden="true">
+  <div class="modal-box">
+    <div class="modal-title">Property Auction</div>
+    <div class="modal-desc" id="auctionPropName"></div>
+    <div class="modal-desc">Current bid: <strong id="auctionCurrentBid">₹1L</strong></div>
+
+    <div class="auction-input-row">
+      <select id="auctionBidder" aria-label="Bidder"><!-- filled by UI --></select>
+    </div>
+    <div class="auction-input-row">
+      <input id="auctionBidInput" type="number" min="1" step="1" placeholder="Bid amount (₹L)" />
+    </div>
+    <div class="modal-actions">
+      <button id="btnConfirmAuction" class="btn btn-primary">✅ Confirm Bid</button>
+      <button id="btnCancelAuction"  class="btn btn-secondary">✗ Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Card reveal modal -->
+<div class="modal-backdrop" id="modalCard" aria-hidden="true">
+  <div class="modal-box">
+    <div id="cardDeckName"></div>
+    <div class="modal-title" id="cardTitle"></div>
+    <div id="cardText"></div>
+    <div class="modal-actions">
+      <button id="btnAcknowledgeCard" class="btn btn-primary btn-full">Got it ✓</button>
+    </div>
+  </div>
+</div>
+
+<!-- Loan modal -->
+<div class="modal-backdrop" id="modalLoan" aria-hidden="true">
+  <div class="modal-box">
+    <div class="modal-title">🏦 Bank Loans</div>
+    <div class="modal-desc">
+      Player: <strong id="loanPlayerName"></strong><br/>
+      Outstanding debt: <strong id="loanCurrentDebt">₹0L</strong><br/>
+      <span style="font-size:0.75rem;color:var(--text-muted)">
+        10% interest is charged each time you pass GO. Max 3 loans of ₹100L each.
+      </span>
+    </div>
+
+    <div class="loan-section">
+      <h3>Take a Loan</h3>
+      <div class="loan-input-row">
+        <input id="loanAmount" type="number" min="1" max="100" step="1" placeholder="Amount (₹L, max 100L)" />
+        <button id="btnTakeLoan" class="btn btn-primary">Borrow</button>
+      </div>
+    </div>
+
+    <div class="loan-section">
+      <h3>Repay Loan</h3>
+      <div class="loan-input-row">
+        <input id="repayAmount" type="number" min="1" step="1" placeholder="Amount (₹L)" />
+        <button id="btnRepayLoan" class="btn btn-secondary">Repay</button>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button id="btnCloseLoan" class="btn btn-secondary">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Player detail modal -->
+<div class="modal-backdrop" id="modalPlayer" aria-hidden="true">
+  <div class="modal-box">
+    <div id="modalPlayerBody"><!-- built by UI.showPlayerDetail() --></div>
+  </div>
+</div>
+
+<!-- Game Over modal -->
+<div class="modal-backdrop" id="modalGameOver" aria-hidden="true">
+  <div class="modal-box" style="padding:0">
+    <div class="modal-box" style="text-align:center;padding:2.5rem;border-color:var(--gold)">
+      <div style="font-size:0.8rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:1rem">
+        🏆 Game Over — Winner!
+      </div>
+      <span id="winnerToken" style="font-size:3rem;display:block;margin-bottom:0.5rem"></span>
+      <div id="winnerName" style="font-size:1.8rem;font-weight:800;color:var(--gold);margin-bottom:1rem"></div>
+      <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:1.5rem">
+        Congratulations — South Mumbai's new real estate mogul!
+      </p>
+      <button id="btnRestartGame" class="btn btn-primary btn-lg">Play Again 🎲</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SCRIPTS (load order matters — data first, then logic)
+════════════════════════════════════════════════════════════ -->
+<script src="js/gameConfig.js"></script>  <!-- static data -->
+<script src="js/cards.js"></script>       <!-- card decks -->
+<script src="js/bank.js"></script>        <!-- Bank class -->
+<script src="js/gameState.js"></script>   <!-- state manager -->
+<script src="js/board.js"></script>       <!-- board renderer -->
+<script src="js/ui.js"></script>          <!-- UI helpers -->
+<script src="js/main.js"></script>        <!-- game controller (last) -->
+
+</body>
+</html>
