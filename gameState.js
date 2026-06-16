@@ -62,6 +62,7 @@ const GameState = (() => {
       jailTurns:     0,       // turns served (max 3 before forced pay)
       skipTurns:     0,       // card-induced turn skips
       status:        'active', // 'active' | 'bankrupt'
+      crrWarned:     false,    // currently below the RBI cash-reserve floor?
     };
   }
 
@@ -85,6 +86,12 @@ const GameState = (() => {
         shortfallCreditor: null, // player id or null (bank)
         auctionPosition:   null, // position being auctioned
         pendingReroll:     false, // whether current player rolled doubles before a buy/auction decision
+        // ── RBI economy ──────────────────────────────────────────────────────
+        ledger:            [],   // transaction records (capped at GAME_CONFIG.LEDGER_MAX)
+        _txnSeq:           0,    // monotonically increasing ledger id
+        repoRate:          GAME_CONFIG.REPO_RATE_START, // current RBI repo rate (%)
+        round:             1,    // completed-lap counter (all players = 1 round)
+        lastRepoReviewRound: 1,  // last round the RBI reviewed the repo rate
       };
     },
 
@@ -113,6 +120,10 @@ const GameState = (() => {
     set auctionPosition(v) { _state.auctionPosition = v; },
     get pendingReroll()    { return _state.pendingReroll; },
     set pendingReroll(v)   { _state.pendingReroll = v; },
+    get ledger()           { return _state.ledger; },
+    get repoRate()         { return _state.repoRate; },
+    set repoRate(v)        { _state.repoRate = v; },
+    get round()            { return _state.round; },
 
     // ── Current player convenience ────────────────────────────────────────────
 
@@ -149,7 +160,75 @@ const GameState = (() => {
 
     err(msg) {
       if (typeof UI !== 'undefined') UI.toast(msg, 'error');
+      if (typeof AUDIO !== 'undefined') AUDIO.errorFeedback();
       return { ok: false, message: msg };
+    },
+
+    // ── RBI Digital Ledger ──────────────────────────────────────────────────
+    /**
+     * Record a transaction in the RBI ledger.
+     * @param {object} e
+     *   category : 'property' | 'rent' | 'rbi' | 'system'
+     *   desc     : human-readable statement line
+     *   amount   : value in ₹L (0 for informational entries)
+     *   tone     : 'credit' | 'debit' | 'neutral' (default colour in the "All" view)
+     *   parties  : [{ id, delta }]  delta>0 = received, delta<0 = paid (for "My" filter)
+     */
+    recordTxn(e = {}) {
+      const now   = new Date();
+      const entry = {
+        id:       ++_state._txnSeq,
+        t:        now.getTime(),
+        time:     now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+        turn:     _state.turn,
+        round:    _state.round,
+        category: e.category || 'system',
+        desc:     e.desc || '',
+        amount:   e.amount || 0,
+        tone:     e.tone || 'neutral',
+        parties:  (e.parties || []).filter(Boolean),
+      };
+      _state.ledger.push(entry);
+      // Cap at the most recent N entries — auto-evict the oldest.
+      const max = GAME_CONFIG.LEDGER_MAX || 100;
+      if (_state.ledger.length > max) {
+        _state.ledger.splice(0, _state.ledger.length - max);
+      }
+      if (typeof UI !== 'undefined' && UI.onLedgerUpdate) UI.onLedgerUpdate(entry);
+      return entry;
+    },
+
+    // ── Dynamic Repo Rate (RBI monetary policy) ───────────────────────────────
+    /** Periodically re-set the repo rate within the configured band. */
+    reviewRepoRate() {
+      const min = GAME_CONFIG.REPO_RATE_MIN;
+      const max = GAME_CONFIG.REPO_RATE_MAX;
+      const old = _state.repoRate;
+      let next  = old, guard = 0;
+      do {
+        next = Math.round((min + Math.random() * (max - min)) * 4) / 4; // 0.25% steps
+        guard++;
+      } while (Math.abs(next - old) < 0.75 && guard < 10);
+      _state.repoRate = next;
+
+      const dir = next > old ? 'raised' : 'cut';
+      this.log(`RBI ${dir} the Repo Rate: ${old}% → ${next}%.`);
+      this.recordTxn({
+        category: 'rbi', tone: 'neutral', amount: 0,
+        desc: `RBI Monetary Policy — Repo Rate ${dir} to ${next}%`,
+      });
+      if (typeof AUDIO !== 'undefined') AUDIO.play('chime');
+      if (typeof UI !== 'undefined') {
+        UI.toast(`RBI ${dir} the Repo Rate to ${next}% (was ${old}%).`);
+        if (UI.refreshRepoChip) UI.refreshRepoChip();
+      }
+    },
+
+    // ── CRR (Cash Reserve Ratio) advisory ─────────────────────────────────────
+    /** True if a player is below the RBI liquid-cash floor. */
+    belowCRR(player) {
+      return player && player.status === 'active' &&
+             player.cash < GAME_CONFIG.CRR_MINIMUM;
     },
 
     // ── Turn machine transitions ──────────────────────────────────────────────
@@ -170,6 +249,16 @@ const GameState = (() => {
       _state.currentPlayerIdx = next;
       _state.turn++;
       _state.turnPhase = TurnPhase.WAITING_ROLL;
+
+      // Round tracking → trigger the periodic RBI repo-rate review.
+      const newRound = Math.floor((_state.turn - 1) / _state.players.length) + 1;
+      if (newRound > _state.round) {
+        _state.round = newRound;
+        if (newRound - _state.lastRepoReviewRound >= GAME_CONFIG.REPO_RATE_INTERVAL) {
+          _state.lastRepoReviewRound = newRound;
+          this.reviewRepoRate();
+        }
+      }
 
       // Handle skip-turn effect (e.g. monsoon card)
       const cp = this.currentPlayer;
@@ -261,6 +350,11 @@ const GameState = (() => {
       ps.owner = player.id;
       player.properties.push(position);
       this.log(`${player.name} bought ${cfg.name} for ₹${cfg.price}L.`);
+      this.recordTxn({
+        category: 'property', tone: 'debit', amount: cfg.price,
+        desc: `${player.name} purchased ${cfg.name}`,
+        parties: [{ id: player.id, delta: -cfg.price }],
+      });
       _state.turnPhase = TurnPhase.CAN_END_TURN;
       return { ok: true };
     },
@@ -282,6 +376,11 @@ const GameState = (() => {
         if (player.cash < GAME_CONFIG.JAIL_BAIL)
           return this.err(`Need ₹${GAME_CONFIG.JAIL_BAIL}L for bail.`);
         bank.pay(player, null, GAME_CONFIG.JAIL_BAIL, this);
+        this.recordTxn({
+          category: 'system', tone: 'debit', amount: GAME_CONFIG.JAIL_BAIL,
+          desc: `${player.name} paid Traffic Jam bail`,
+          parties: [{ id: player.id, delta: -GAME_CONFIG.JAIL_BAIL }],
+        });
         player.inJail    = false;
         player.jailTurns = 0;
         this.log(`${player.name} paid ₹${GAME_CONFIG.JAIL_BAIL}L bail and is free!`);

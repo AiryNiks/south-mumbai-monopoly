@@ -5,12 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>South Mumbai Business Game</title>
   <link rel="stylesheet" href="styles.css" />
-  <!-- Google Fonts — Inter -->
+  <!-- Google Fonts — Poiret One (display) + Montserrat (body/numbers) -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Poiret+One&display=swap" rel="stylesheet" />
 </head>
 <body>
+
+<!-- Sound toggle — mutes / unmutes the Web Audio sound engine -->
+<button id="muteToggle" type="button" aria-label="Toggle sound" title="Toggle sound">
+  <span class="mute-label">Sound On</span>
+</button>
+
+<!-- Theme toggle — switches the Bombay Gymkhana palette between light & dark -->
+<button id="themeToggle" type="button" aria-label="Toggle dark mode" title="Toggle dark mode">
+  <span class="theme-toggle-label">Dark</span>
+</button>
 
 <!-- ═══════════════════════════════════════════════════════════
      SETUP SCREEN
@@ -18,7 +28,7 @@
 <div id="setupScreen">
   <div class="setup-card">
     <div class="setup-logo">
-      <h1>South Mumbai<br>Business Game</h1>
+      <h1>South Mumbai Business Game</h1>
       <p>Where Heritage Meets High Stakes Real Estate</p>
     </div>
 
@@ -41,7 +51,7 @@
         Each player starts with <strong style="color:var(--gold)">₹500 Lakhs (₹5 Crores)</strong>.
         Buy properties, build offices &amp; HQ, collect rent, and bankrupt your rivals!
       </p>
-      <button id="btnStartGame" class="btn btn-primary btn-full btn-lg">Start Game 🎲</button>
+      <button id="btnStartGame" class="btn btn-primary btn-full btn-lg">Begin Play</button>
     </div>
   </div>
 </div>
@@ -70,7 +80,6 @@
   <aside class="sidebar sidebar-right">
     <!-- Current player strip -->
     <div id="currentPlayerStrip">
-      <span class="cp-token">🎲</span>
       <span class="cp-name">—</span>
       <span class="cp-cash">₹—</span>
     </div>
@@ -80,21 +89,22 @@
 
     <!-- Dice -->
     <div id="diceArea">
-      <div class="die" id="die1">⚀</div>
-      <div class="die" id="die2">⚀</div>
+      <div class="die" id="die1" data-face="1"></div>
+      <div class="die" id="die2" data-face="1"></div>
     </div>
 
     <!-- Action buttons -->
     <div id="actionButtons">
-      <button id="btnRoll"     class="btn btn-primary btn-full">🎲 Roll Dice</button>
-      <button id="btnBail"     class="btn btn-full">🚦 Pay ₹5L Bail</button>
-      <button id="btnJailCard" class="btn btn-full">🎟 Use Jail Free Card</button>
-      <button id="btnEndTurn"  class="btn btn-secondary btn-full" disabled>⏭ End Turn</button>
+      <button id="btnRoll"     class="btn btn-primary btn-full">Roll Dice</button>
+      <button id="btnBail"     class="btn btn-full">Pay ₹5L Bail</button>
+      <button id="btnJailCard" class="btn btn-full">Use Jail-Free Card</button>
+      <!-- Turns end automatically — this status replaces the manual End Turn button -->
+      <div id="turnStatus" class="turn-status" aria-live="polite">Roll the dice to begin</div>
     </div>
 
     <!-- Shortfall panel -->
     <div id="shortfallPanel">
-      <h4>⚠️ Shortfall!</h4>
+      <h4>Shortfall</h4>
       <p>You need <strong id="shortfallAmount">₹—</strong> more.</p>
       <p style="font-size:0.72rem;color:var(--text-muted);margin-top:0.3rem">
         Click a property you own to mortgage it, or sell buildings.
@@ -103,8 +113,9 @@
 
     <!-- Management tools -->
     <div id="managementTools">
-      <div class="manage-label">Finance</div>
-      <button id="btnLoan" class="btn btn-secondary btn-full">🏦 Bank Loans</button>
+      <div class="manage-label">Reserve Bank of India</div>
+      <div id="repoChip"><span class="repo-dot"></span>RBI Repo Rate&nbsp;<strong>—</strong></div>
+      <button id="btnLoan" class="btn btn-secondary btn-full">Reserve Bank of India</button>
     </div>
   </aside>
 
@@ -129,8 +140,8 @@
   <div class="modal-box">
     <div id="modalBuyBody"><!-- built by UI.showBuyDecision() --></div>
     <div class="modal-actions">
-      <button id="btnBuyProperty"    class="btn btn-primary">🏠 Buy</button>
-      <button id="btnAuctionProperty" class="btn btn-secondary">🔨 Auction</button>
+      <button id="btnBuyProperty"    class="btn btn-primary">Buy</button>
+      <button id="btnAuctionProperty" class="btn btn-secondary">Auction</button>
     </div>
   </div>
 </div>
@@ -149,8 +160,8 @@
       <input id="auctionBidInput" type="number" min="1" step="1" placeholder="Bid amount (₹L)" />
     </div>
     <div class="modal-actions">
-      <button id="btnConfirmAuction" class="btn btn-primary">✅ Confirm Bid</button>
-      <button id="btnCancelAuction"  class="btn btn-secondary">✗ Cancel</button>
+      <button id="btnConfirmAuction" class="btn btn-primary">Confirm Bid</button>
+      <button id="btnCancelAuction"  class="btn btn-secondary">Cancel</button>
     </div>
   </div>
 </div>
@@ -167,37 +178,10 @@
   </div>
 </div>
 
-<!-- Loan modal -->
-<div class="modal-backdrop" id="modalLoan" aria-hidden="true">
+<!-- Reserve Bank of India modal — Banking · Ledger · About (built by UI.showRBI) -->
+<div class="modal-backdrop" id="modalRBI" aria-hidden="true">
   <div class="modal-box">
-    <div class="modal-title">🏦 Bank Loans</div>
-    <div class="modal-desc">
-      Player: <strong id="loanPlayerName"></strong><br/>
-      Outstanding debt: <strong id="loanCurrentDebt">₹0L</strong><br/>
-      <span style="font-size:0.75rem;color:var(--text-muted)">
-        10% interest is charged each time you pass GO. Max 3 loans of ₹100L each.
-      </span>
-    </div>
-
-    <div class="loan-section">
-      <h3>Take a Loan</h3>
-      <div class="loan-input-row">
-        <input id="loanAmount" type="number" min="1" max="100" step="1" placeholder="Amount (₹L, max 100L)" />
-        <button id="btnTakeLoan" class="btn btn-primary">Borrow</button>
-      </div>
-    </div>
-
-    <div class="loan-section">
-      <h3>Repay Loan</h3>
-      <div class="loan-input-row">
-        <input id="repayAmount" type="number" min="1" step="1" placeholder="Amount (₹L)" />
-        <button id="btnRepayLoan" class="btn btn-secondary">Repay</button>
-      </div>
-    </div>
-
-    <div class="modal-actions">
-      <button id="btnCloseLoan" class="btn btn-secondary">Close</button>
-    </div>
+    <div id="modalRBIBody"><!-- populated by UI.renderRBI() --></div>
   </div>
 </div>
 
@@ -213,14 +197,14 @@
   <div class="modal-box" style="padding:0">
     <div class="modal-box" style="text-align:center;padding:2.5rem;border-color:var(--gold)">
       <div style="font-size:0.8rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-muted);margin-bottom:1rem">
-        🏆 Game Over — Winner!
+        Game Over — Winner
       </div>
       <span id="winnerToken" style="font-size:3rem;display:block;margin-bottom:0.5rem"></span>
       <div id="winnerName" style="font-size:1.8rem;font-weight:800;color:var(--gold);margin-bottom:1rem"></div>
       <p style="color:var(--text-muted);font-size:0.85rem;margin-bottom:1.5rem">
         Congratulations — South Mumbai's new real estate mogul!
       </p>
-      <button id="btnRestartGame" class="btn btn-primary btn-lg">Play Again 🎲</button>
+      <button id="btnRestartGame" class="btn btn-primary btn-lg">Play Again</button>
     </div>
   </div>
 </div>
@@ -228,6 +212,7 @@
 <!-- ═══════════════════════════════════════════════════════════
      SCRIPTS (load order matters — data first, then logic)
 ════════════════════════════════════════════════════════════ -->
+<script src="audio.js"></script>      <!-- Web Audio sound engine (no deps) -->
 <script src="gameConfig.js"></script>  <!-- static data -->
 <script src="cards.js"></script>       <!-- card decks -->
 <script src="bank.js"></script>        <!-- Bank class -->
