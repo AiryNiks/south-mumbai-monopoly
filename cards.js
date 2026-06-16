@@ -412,32 +412,6 @@ const CARDS = (() => {
   let hustleDeck = [];
   let gossipDeck = [];
 
-  /**
-   * Record every per-player cash change a card caused into the RBI ledger, and
-   * play an income chime for the drawer if they came out ahead. Diffing before/
-   * after captures all flavour cards (gifts, fines, collect-from-all) without
-   * having to annotate each of the 32 card actions individually.
-   */
-  function recordCardDeltas(deckName, card, drawer, gs, before) {
-    if (!gs || typeof gs.recordTxn !== 'function') return;
-    gs.players.forEach((p, i) => {
-      const delta = p.cash - before[i];
-      if (Math.abs(delta) < 0.001) return;
-      gs.recordTxn({
-        category: 'system',
-        tone:     delta > 0 ? 'credit' : 'debit',
-        amount:   Math.abs(delta),
-        desc:     `${deckName}: ${card.title} — ${p.name}`,
-        parties:  [{ id: p.id, delta }],
-      });
-    });
-    if (typeof AUDIO !== 'undefined') {
-      const idx = gs.players.indexOf(drawer);
-      const d   = idx >= 0 ? drawer.cash - before[idx] : 0;
-      if (d > 0) AUDIO.play('cash');
-    }
-  }
-
   return {
     /** Call at game start — creates and shuffles both decks. */
     init() {
@@ -452,9 +426,7 @@ const CARDS = (() => {
       // Jail-Free cards stay with player, not returned to deck until used
       if (!card.isJailFree) hustleDeck.push(card);
       ui.showCard('Mumbai Hustle', card);
-      const before = gameState.players.map(p => p.cash);
       card.action(player, gameState, bank, ui);
-      recordCardDeltas('Mumbai Hustle', card, player, gameState, before);
       return card;
     },
 
@@ -464,9 +436,7 @@ const CARDS = (() => {
       const card = gossipDeck.shift();
       if (!card.isJailFree) gossipDeck.push(card);
       ui.showCard('Townie Gossip', card);
-      const before = gameState.players.map(p => p.cash);
       card.action(player, gameState, bank, ui);
-      recordCardDeltas('Townie Gossip', card, player, gameState, before);
       return card;
     },
 

@@ -66,11 +66,6 @@ class Bank {
     ps.mortgaged = true;
     this.pay(null, player, cfg.mortgage, gs);
     gs.log(`${player.name} mortgaged ${cfg.name} for ₹${cfg.mortgage}L.`);
-    gs.recordTxn({
-      category: 'rbi', tone: 'credit', amount: cfg.mortgage,
-      desc: `RBI mortgage approved on ${cfg.name}`,
-      parties: [{ id: player.id, delta: cfg.mortgage }],
-    });
     return { ok: true };
   }
 
@@ -90,11 +85,6 @@ class Bank {
     this.pay(player, null, cost, gs);
     ps.mortgaged = false;
     gs.log(`${player.name} unmortgaged ${cfg.name} for ₹${cost}L (principal + 10%).`);
-    gs.recordTxn({
-      category: 'rbi', tone: 'debit', amount: cost,
-      desc: `${player.name} cleared mortgage on ${cfg.name}`,
-      parties: [{ id: player.id, delta: -cost }],
-    });
     return { ok: true };
   }
 
@@ -137,11 +127,6 @@ class Bank {
     ps.buildings += 1;
     this.officesAvailable -= 1;
     gs.log(`${player.name} built an office on ${cfg.name}. (${ps.buildings}/5)`);
-    gs.recordTxn({
-      category: 'property', tone: 'debit', amount: cost,
-      desc: `${player.name} built an office on ${cfg.name}`,
-      parties: [{ id: player.id, delta: -cost }],
-    });
     return { ok: true };
   }
 
@@ -166,11 +151,6 @@ class Bank {
     ps.buildings -= 1;
     this.officesAvailable += 1;
     gs.log(`${player.name} sold an office on ${cfg.name} for ₹${refund}L.`);
-    gs.recordTxn({
-      category: 'property', tone: 'credit', amount: refund,
-      desc: `${player.name} sold an office on ${cfg.name}`,
-      parties: [{ id: player.id, delta: refund }],
-    });
     return { ok: true };
   }
 
@@ -199,11 +179,6 @@ class Bank {
     this.officesAvailable += 4;   // 4 houses returned to supply
     this.hqAvailable -= 1;
     gs.log(`${player.name} upgraded ${cfg.name} to a HQ!`);
-    gs.recordTxn({
-      category: 'property', tone: 'debit', amount: cost,
-      desc: `${player.name} built Headquarters on ${cfg.name}`,
-      parties: [{ id: player.id, delta: -cost }],
-    });
     return { ok: true };
   }
 
@@ -225,11 +200,6 @@ class Bank {
     this.hqAvailable += 1;
     this.officesAvailable = Math.max(0, this.officesAvailable - 4);
     gs.log(`${player.name} sold the HQ on ${cfg.name} for ₹${refund}L (4 offices placed).`);
-    gs.recordTxn({
-      category: 'property', tone: 'credit', amount: refund,
-      desc: `${player.name} sold the HQ on ${cfg.name}`,
-      parties: [{ id: player.id, delta: refund }],
-    });
     return { ok: true };
   }
 
@@ -248,18 +218,10 @@ class Bank {
     if (amount <= 0)
       return gs.err('Loan amount must be positive.');
 
-    // Lock the interest rate at the repo rate prevailing when the loan is taken —
-    // so timing your borrowing against the RBI Repo Rate genuinely matters.
-    const rate = (gs.repoRate != null) ? gs.repoRate : (GAME_CONFIG.LOAN_INTEREST * 100);
-    const loan = { principal: amount, interest: 0, rate };
+    const loan = { principal: amount, interest: 0 };
     player.loans = loans.concat(loan);
     this.pay(null, player, amount, gs);
-    gs.log(`${player.name} took a ₹${amount}L RBI loan at ${rate}% (repo-linked).`);
-    gs.recordTxn({
-      category: 'rbi', tone: 'credit', amount,
-      desc: `RBI loan disbursed to ${player.name} @ ${rate}%`,
-      parties: [{ id: player.id, delta: amount }],
-    });
+    gs.log(`${player.name} took a bank loan of ₹${amount}L. Repay with 10% interest.`);
     return { ok: true, loan };
   }
 
@@ -286,12 +248,7 @@ class Bank {
     // Remove fully repaid loans
     player.loans = loans.filter(l => l.principal + l.interest > 0.001);
     this.pay(player, null, amount, gs);
-    gs.log(`${player.name} repaid ₹${amount}L toward RBI loans.`);
-    gs.recordTxn({
-      category: 'rbi', tone: 'debit', amount,
-      desc: `${player.name} repaid RBI loan`,
-      parties: [{ id: player.id, delta: -amount }],
-    });
+    gs.log(`${player.name} repaid ₹${amount}L toward bank loans.`);
     return { ok: true };
   }
 
@@ -304,19 +261,12 @@ class Bank {
     if (loans.length === 0) return;
     let totalInterest = 0;
     loans.forEach(l => {
-      // Each loan accrues at its own locked repo-linked rate.
-      const ratePct  = (l.rate != null) ? l.rate : (GAME_CONFIG.LOAN_INTEREST * 100);
-      const interest = Math.ceil(l.principal * ratePct / 100);
+      const interest = Math.ceil(l.principal * GAME_CONFIG.LOAN_INTEREST);
       l.interest += interest;
       totalInterest += interest;
     });
     if (totalInterest > 0) {
-      gs.log(`${player.name} accrued ₹${totalInterest}L RBI loan interest (pass-GO).`);
-      gs.recordTxn({
-        category: 'rbi', tone: 'debit', amount: totalInterest,
-        desc: `RBI loan interest accrued for ${player.name}`,
-        parties: [{ id: player.id, delta: -totalInterest }],
-      });
+      gs.log(`${player.name} accrued ₹${totalInterest}L loan interest (10% per pass-GO).`);
     }
   }
 
@@ -378,11 +328,6 @@ class Bank {
     const cfg = GAME_CONFIG.getSpace(position);
     winner.properties.push(position);
     gs.log(`${winner.name} won auction for ${cfg.name} at ₹${bidAmount}L.`);
-    gs.recordTxn({
-      category: 'property', tone: 'debit', amount: bidAmount,
-      desc: `${cfg.name} won at auction by ${winner.name}`,
-      parties: [{ id: winner.id, delta: -bidAmount }],
-    });
     return { ok: true };
   }
 }

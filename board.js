@@ -14,11 +14,6 @@
 
 const Board = (() => {
 
-  // Per-tile token hop duration (ms) — tuned for a tactile, premium cadence.
-  const HOP_MS = 150;
-  const HOP_LIFT = 18;          // how high the token lifts at the apex of each hop
-  let _travelingIdx = null;     // player index currently mid-flight (hidden from static render)
-
   // ── Grid position lookup ──────────────────────────────────────────────────
 
   /**
@@ -107,14 +102,14 @@ const Board = (() => {
     if (cfg.type === 'railway') {
       const icon = document.createElement('div');
       icon.className = 'space-icon railway-icon';
-      icon.textContent = '≣';
+      icon.textContent = '🚂';
       content.appendChild(icon);
     }
 
     if (cfg.type === 'utility') {
       const icon = document.createElement('div');
       icon.className = 'space-icon utility-icon';
-      icon.textContent = cfg.position === 12 ? '↯' : '≈';
+      icon.textContent = cfg.position === 12 ? '⚡' : '🔌';
       content.appendChild(icon);
     }
 
@@ -152,68 +147,21 @@ const Board = (() => {
 
   function spaceIcon(cfg) {
     switch (cfg.subtype || cfg.type) {
-      case 'go':            return '⇢';
-      case 'jail':          return '⊘';
-      case 'free_parking':  return '❖';
-      case 'go_to_jail':    return '⊗';
-      case 'chance':        return '✦';
-      case 'community_chest': return '✉';
-      case 'income':        return '₹';
-      case 'luxury':        return '◈';
-      default:              return '◆';
+      case 'go':            return '🏁';
+      case 'jail':          return '🚦';
+      case 'free_parking':  return '🌊';
+      case 'go_to_jail':    return '🚔';
+      case 'chance':        return '🎲';
+      case 'community_chest': return '📬';
+      case 'income':        return '💸';
+      case 'luxury':        return '💎';
+      default:              return '❓';
     }
   }
-
-  // ── Token hop animation (tactile arc movement) ─────────────────────────────
-
-  /** Centre of a tile in coordinates relative to the #board element. */
-  function tileCenter(position) {
-    const board = document.getElementById('board');
-    const tile  = document.querySelector(`.board-space[data-position="${position}"]`);
-    if (!board || !tile) return { x: 0, y: 0 };
-    const br = board.getBoundingClientRect();
-    const tr = tile.getBoundingClientRect();
-    return { x: tr.left - br.left + tr.width / 2, y: tr.top - br.top + tr.height / 2 };
-  }
-
-  /** Animate one token element along a lifting/dropping arc from→to. */
-  function hopTo(el, from, to, dur) {
-    return new Promise(resolve => {
-      const half = (el.offsetWidth || 15) / 2;
-      const x0 = from.x - half, y0 = from.y - half;
-      const x1 = to.x   - half, y1 = to.y   - half;
-      const mx = (x0 + x1) / 2,  my = Math.min(y0, y1) - HOP_LIFT;
-
-      // Graceful fallback when the Web Animations API is unavailable.
-      if (typeof el.animate !== 'function') {
-        el.style.transform = `translate(${x1}px, ${y1}px)`;
-        setTimeout(resolve, dur);
-        return;
-      }
-
-      const anim = el.animate([
-        // rise — decelerate toward the apex (ease-out)
-        { transform: `translate(${x0}px, ${y0}px) scale(1)`,        easing: 'cubic-bezier(0.16, 0.7, 0.3, 1)' },
-        // apex — slight lift scale
-        { transform: `translate(${mx}px, ${my}px) scale(1.07)`, offset: 0.5, easing: 'cubic-bezier(0.6, 0, 0.85, 0.4)' },
-        // drop — accelerate down, settle (gentle squash)
-        { transform: `translate(${x1}px, ${y1}px) scale(1)` },
-      ], { duration: dur, fill: 'forwards' });
-
-      let done = false;
-      const finish = () => { if (done) return; done = true; resolve(); };
-      anim.onfinish = finish;
-      setTimeout(finish, dur + 60);   // safety net if onfinish never fires
-    });
-  }
-
-  function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
 
   // ── Public render function ────────────────────────────────────────────────
 
   return {
-
-    HOP_MS,
     /**
      * Build the entire board DOM and insert into #board.
      * Call once at game start.
@@ -271,7 +219,6 @@ const Board = (() => {
 
       GameState.players.forEach((player, idx) => {
         if (player.status !== 'active') return;
-        if (idx === _travelingIdx) return;   // mid-hop: drawn by the traveling token instead
         const spaceEl = document.querySelector(`.board-space[data-position="${player.position}"]`);
         if (!spaceEl) return;
         const tc = spaceEl.querySelector('.tokens-container');
@@ -281,7 +228,7 @@ const Board = (() => {
         token.className = 'player-token';
         token.style.backgroundColor = GAME_CONFIG.PLAYER_COLORS[idx];
         token.title = player.name;
-        token.innerHTML = GAME_CONFIG.monumentIcon(idx);
+        token.textContent = GAME_CONFIG.PLAYER_TOKENS[idx] || '●';
         if (idx === GameState.currentPlayerIdx) token.classList.add('active-token');
         tc.appendChild(token);
       });
@@ -298,14 +245,26 @@ const Board = (() => {
         const ps  = GameState.propertyState[pos];
         const buildingsEl = el.querySelector('.buildings-display');
         if (!buildingsEl) return;
+        buildingsEl.innerHTML = '';
 
-        // Render custom House (offices) / Hotel (HQ) SVG emblems.
-        buildingsEl.innerHTML = (!ps || ps.buildings === 0)
-          ? ''
-          : GAME_CONFIG.buildingsMarkup(ps.buildings);
+        if (!ps || ps.buildings === 0) return;
 
-        // Mortgaged overlay (ps is undefined for corners/Chance/Tax — guard it)
-        if (ps && ps.mortgaged) {
+        if (ps.buildings === 5) {
+          // HQ
+          const hq = document.createElement('div');
+          hq.className = 'building hq';
+          hq.textContent = '🏢';
+          buildingsEl.appendChild(hq);
+        } else {
+          for (let i = 0; i < ps.buildings; i++) {
+            const off = document.createElement('div');
+            off.className = 'building office';
+            buildingsEl.appendChild(off);
+          }
+        }
+
+        // Mortgaged overlay
+        if (ps.mortgaged) {
           el.classList.add('mortgaged');
         } else {
           el.classList.remove('mortgaged');
@@ -331,66 +290,6 @@ const Board = (() => {
           el.classList.add('owned', `player${ps.owner}-owned`);
         }
       });
-    },
-
-    /**
-     * Animate a player's token hopping `steps` tiles, one tactile arc per tile.
-     * Updates player.position after each landed tile and fires onStep(pos) so the
-     * caller can play the "wooden tick" exactly as the token lands.
-     * Falls back to instant position updates in non-DOM (headless) environments.
-     *
-     * @returns {Promise<void>} resolves when the whole move completes.
-     */
-    async animateTokenMove(player, idx, steps, onStep) {
-      const board = document.getElementById('board');
-
-      // Headless / no-DOM fallback — just advance the model and tick.
-      if (!board || typeof board.appendChild !== 'function' ||
-          typeof document.querySelector !== 'function') {
-        for (let i = 0; i < steps; i++) {
-          player.position = (player.position + 1) % 40;
-          if (onStep) onStep(player.position);
-        }
-        return;
-      }
-
-      _travelingIdx = idx;
-      this.refreshTokens();                       // remove the static token while it flies
-
-      const trav = document.createElement('div');
-      trav.className = 'player-token active-token traveling-token';
-      trav.style.position = 'absolute';
-      trav.style.left = '0';
-      trav.style.top = '0';
-      trav.style.margin = '0';
-      trav.style.backgroundColor = GAME_CONFIG.PLAYER_COLORS[idx];
-      trav.innerHTML = GAME_CONFIG.monumentIcon(idx);
-      board.appendChild(trav);
-
-      const half = (trav.offsetWidth || 15) / 2;
-      const startC = tileCenter(player.position);
-      trav.style.transform = `translate(${startC.x - half}px, ${startC.y - half}px)`;
-
-      for (let i = 0; i < steps; i++) {
-        const from    = tileCenter(player.position);
-        const nextPos = (player.position + 1) % 40;
-        const to      = tileCenter(nextPos);
-        await hopTo(trav, from, to, HOP_MS);
-        player.position = nextPos;
-        if (onStep) onStep(player.position);      // wooden tick lands here
-      }
-
-      trav.remove();
-      _travelingIdx = null;
-      this.refreshTokens();
-
-      // A subtle settle bounce on the freshly-landed token.
-      const landed = board.querySelector(
-        `.board-space[data-position="${player.position}"] .player-token.active-token`);
-      if (landed) {
-        landed.classList.add('just-landed');
-        setTimeout(() => landed.classList.remove('just-landed'), 380);
-      }
     },
 
     /**

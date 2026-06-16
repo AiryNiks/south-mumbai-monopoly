@@ -20,9 +20,6 @@ const Game = (() => {
   // ── Setup ──────────────────────────────────────────────────────────────────
 
   function init() {
-    // Restore + wire the dark-mode theme toggle
-    initTheme();
-
     // Show setup screen, hide game screen
     document.getElementById('setupScreen').style.display  = 'flex';
     document.getElementById('gameScreen').style.display   = 'none';
@@ -30,71 +27,19 @@ const Game = (() => {
     document.getElementById('btnStartGame').addEventListener('click', startGame);
     document.getElementById('btnRestartGame').addEventListener('click', () => location.reload());
 
-    // Close modals on backdrop click. Closing the Buy prompt counts as declining.
+    // Close modals on backdrop click
     document.querySelectorAll('.modal-backdrop').forEach(m => {
       m.addEventListener('click', e => {
-        if (e.target !== m) return;
-        UI.closeModal(m.id);
-        if ((m.id === 'modalBuy' || m.id === 'modalAuction') &&
-            GameState && GameState.turnPhase === TurnPhase.BUY_DECISION) {
-          declinePurchase();
-        }
+        if (e.target === m) UI.closeModal(m.id);
       });
     });
 
-    // Action buttons (no End Turn button — turns auto-advance).
+    // Action buttons
     document.getElementById('btnRoll').addEventListener('click', rollDice);
+    document.getElementById('btnEndTurn').addEventListener('click', endTurn);
     document.getElementById('btnBail').addEventListener('click', () => payJailBail());
     document.getElementById('btnJailCard').addEventListener('click', () => useJailCard());
-    document.getElementById('btnLoan').addEventListener('click', () => UI.showRBI());
-
-    // Tactile feedback on the Reserve Bank button (ATM membrane click + haptic).
-    if (typeof AUDIO !== 'undefined') {
-      AUDIO.tactile(document.getElementById('btnLoan'));
-      AUDIO.tactile(document.getElementById('btnBail'));
-      AUDIO.tactile(document.getElementById('btnJailCard'));
-    }
-
-    // Sound mute toggle.
-    const muteBtn = document.getElementById('muteToggle');
-    if (muteBtn) {
-      const syncMute = () => {
-        const m = (typeof AUDIO !== 'undefined') && AUDIO.isMuted();
-        muteBtn.classList.toggle('is-muted', !!m);
-        const label = muteBtn.querySelector('.mute-label');
-        if (label) label.textContent = m ? 'Sound Off' : 'Sound On';
-      };
-      muteBtn.addEventListener('click', () => {
-        if (typeof AUDIO !== 'undefined') { AUDIO.toggleMuted(); if (!AUDIO.isMuted()) AUDIO.play('atm'); }
-        syncMute();
-      });
-      syncMute();
-    }
-  }
-
-  // ── Dark mode ───────────────────────────────────────────────────────────────
-
-  function applyTheme(theme) {
-    document.documentElement.setAttribute('data-theme', theme);
-    const btn = document.getElementById('themeToggle');
-    if (btn) {
-      const label = btn.querySelector('.theme-toggle-label');
-      if (label) label.textContent = theme === 'dark' ? 'Light' : 'Dark';
-    }
-  }
-
-  function initTheme() {
-    let saved = 'light';
-    try { saved = localStorage.getItem('smbg-theme') || 'light'; } catch (e) {}
-    applyTheme(saved);
-    const btn = document.getElementById('themeToggle');
-    if (btn) {
-      btn.addEventListener('click', () => {
-        const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-        applyTheme(next);
-        try { localStorage.setItem('smbg-theme', next); } catch (e) {}
-      });
-    }
+    document.getElementById('btnLoan').addEventListener('click', () => UI.showLoanDialog());
   }
 
   function startGame() {
@@ -102,7 +47,7 @@ const Game = (() => {
     const names = [];
     for (let i = 1; i <= playerCount; i++) {
       const inp = document.getElementById(`pname${i}`);
-      names.push((inp && inp.value.trim()) || GAME_CONFIG.PLAYER_MONUMENTS[i-1] || `Player ${i}`);
+      names.push((inp && inp.value.trim()) || `Player ${i}`);
     }
 
     // Init subsystems
@@ -116,8 +61,7 @@ const Game = (() => {
 
     document.getElementById('setupScreen').style.display = 'none';
     document.getElementById('gameScreen').style.display  = 'flex';
-    Board.centerAlert(`${GameState.currentPlayer.name} goes first.`);
-    setStatus(`${GameState.currentPlayer.name} — roll the dice`);
+    Board.centerAlert(`${GameState.currentPlayer.name} goes first! 🎲`);
   }
 
   // ── Player count selector ─────────────────────────────────────────────────
@@ -131,125 +75,25 @@ const Game = (() => {
       const div = document.createElement('div');
       div.className = 'name-input-row';
       div.innerHTML = `
-        ${GAME_CONFIG.monumentBadge(i-1)}
-        <input id="pname${i}" type="text" placeholder="${GAME_CONFIG.PLAYER_MONUMENTS[i-1]}" maxlength="20" />
+        <span class="name-token" style="color:${GAME_CONFIG.PLAYER_COLORS[i-1]}">${GAME_CONFIG.PLAYER_TOKENS[i-1]}</span>
+        <input id="pname${i}" type="text" placeholder="Player ${i}" maxlength="14" />
       `;
       wrapper.appendChild(div);
     }
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  //  AUTOMATED TURN ENGINE — Promise-based async sequence with auto-advance.
-  //  The manual "End Turn" button is gone: each turn runs as an async pipeline
-  //    await rollDiceAnimation() → await movePlayerTokenAnimation()
-  //    → await resolveTileAction() → auto-advance (unless doubles / paused).
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ── Dice roll ─────────────────────────────────────────────────────────────
 
-  const AUTO_ADVANCE_MS = 1500;   // UX pause before passing to the next player
-  const HOP_MS          = 130;    // per-tile token hop duration
-
-  let _automating   = false;      // an automated sequence is currently running
-  let _advanceTimer = null;       // the pending auto-advance (pass-turn) timer
-  let _tileResolve  = null;       // resolver for the in-flight resolveTileAction()
-
-  /** Cancel a pending auto-advance timer (called on reset / re-entry). */
-  function clearAdvanceTimer() {
-    if (_advanceTimer) { clearTimeout(_advanceTimer); _advanceTimer = null; }
-  }
-
-  /** Update the right-panel status indicator that replaced the End Turn button. */
-  function setStatus(text) {
-    const el = document.getElementById('turnStatus');
-    if (el) el.textContent = text;
-  }
-
-  /** Toggle the "inputs locked" state during automated/animated stretches. */
-  function setAutomating(on) {
-    _automating = on;
-    document.body.classList.toggle('automating', on);
-    UI.refresh();
-  }
-
-  // ── Awaitable animation primitives ────────────────────────────────────────
-
-  function rollDiceAnimation(d1, d2) {
-    return new Promise(resolve => UI.animateDice(d1, d2, resolve));
-  }
-
-  function movePlayerTokenAnimation(player, steps) {
-    const idx = GameState.players.indexOf(player);
-    // Board owns the tactile arc-hop; we play a "wooden tick" as each tile lands.
-    return Board.animateTokenMove(player, idx, steps, () => {
-      if (typeof AUDIO !== 'undefined') AUDIO.play('tick');
-    });
-  }
-
-  async function doMovement(player, steps) {
-    const oldPos = player.position;
-    await movePlayerTokenAnimation(player, steps);
-    Board.highlightSpace(player.position);   // highlight only the final landing tile
-    // GO salary — identical rule to the original (passed GO, didn't land on GO).
-    if ((player.position < oldPos || (oldPos + steps >= 40)) && player.position !== 0) {
-      bank.pay(null, player, GAME_CONFIG.GO_SALARY, GameState);
-      GameState.recordTxn({
-        category: 'system', tone: 'credit', amount: GAME_CONFIG.GO_SALARY,
-        desc: `${player.name} passed GO — salary collected`,
-        parties: [{ id: player.id, delta: GAME_CONFIG.GO_SALARY }],
-      });
-      bank.chargePassGoInterest(player, GameState);
-      GameState.log(`${player.name} passed GO — collected ₹${GAME_CONFIG.GO_SALARY}L.`);
-      Board.centerAlert(`${player.name} passed GO! +₹${GAME_CONFIG.GO_SALARY}L`);
-      if (typeof AUDIO !== 'undefined') AUDIO.play('cash');
-    }
-  }
-
-  // ── Tile resolution (resolves once the landed square is fully handled) ─────
-
-  function resolveTileAction(player) {
-    return new Promise(resolve => {
-      _tileResolve = () => { _tileResolve = null; resolve(); };
-      executeSpaceAction(player);
-      settleAfterExecute();
-    });
-  }
-
-  /** After executeSpaceAction runs, either resolve now or PAUSE for the user. */
-  function settleAfterExecute() {
-    const ph = GameState.turnPhase;
-    if (ph === TurnPhase.BUY_DECISION) {
-      setStatus('Waiting for your decision…');
-      setAutomating(false);            // re-enable the Buy / Auction buttons
-      return;                          // stay pending until the user acts
-    }
-    if (ph === TurnPhase.AWAITING_PAY) {
-      setStatus('Action required — settle the shortfall');
-      setAutomating(false);            // re-enable finance tools
-      return;                          // stay pending until cash ≥ 0
-    }
-    if (_tileResolve) _tileResolve();  // CAN_END_TURN / GAME_OVER → resolved
-  }
-
-  /** Resume a paused sequence once the user completes the required action. */
-  function resumeAfterPause() {
-    const ph = GameState.turnPhase;
-    if (ph !== TurnPhase.CAN_END_TURN && ph !== TurnPhase.GAME_OVER) return;
-    if (_tileResolve) { setAutomating(true); _tileResolve(); }
-    else              { autoAdvance(); }
-  }
-
-  // ── Dice roll — async entry point (still triggered manually per player) ────
-
-  async function rollDice() {
-    if (_automating) return;                                   // ignore spam
+  function rollDice() {
     if (GameState.turnPhase !== TurnPhase.WAITING_ROLL) {
       UI.toast("It's not time to roll.", 'error'); return;
     }
-    const cp = GameState.currentPlayer;
-    if (cp.status !== 'active') { await autoAdvance(); return; }
 
-    clearAdvanceTimer();
-    UI.hideShortfallPanel();
-    setAutomating(true);
+    const cp = GameState.currentPlayer;
+    if (cp.status !== 'active') { endTurn(); return; }
+
+    GameState.turnPhase = TurnPhase.ANIMATING;
+    UI.refresh();
 
     const d1 = Math.ceil(Math.random() * 6);
     const d2 = Math.ceil(Math.random() * 6);
@@ -257,121 +101,95 @@ const Game = (() => {
     const isDoubles = d1 === d2;
 
     GameState.lastDice = { d1, d2 };
-    GameState.turnPhase = TurnPhase.ANIMATING;
-    setStatus('Rolling the dice…');
-    UI.refresh();
     GameState.log(`${cp.name} rolled ${d1} + ${d2} = ${total}${isDoubles ? ' (DOUBLES!)' : ''}`);
 
-    await rollDiceAnimation(d1, d2);
-
-    if (cp.inJail) await resolveJailRoll(cp, d1, d2, total, isDoubles);
-    else           await resolveNormalRoll(cp, d1, d2, total, isDoubles);
-  }
-
-  async function resolveNormalRoll(cp, d1, d2, total, isDoubles) {
-    if (isDoubles) {
-      GameState.doublesCount++;
-      if (GameState.doublesCount >= 3) {
-        GameState.log(`${cp.name} rolled doubles 3 times — sent to Traffic Jam!`);
-        GameState.sendToJail(cp);
-        Board.refresh(); UI.refresh();
-        await finishResolved(cp, false);   // jailed — no re-roll
-        return;
+    UI.animateDice(d1, d2, () => {
+      if (cp.inJail) {
+        handleJailRoll(cp, d1, d2, total, isDoubles);
+      } else {
+        handleNormalRoll(cp, d1, d2, total, isDoubles);
       }
-    }
-    setStatus('Moving…');
-    await doMovement(cp, total);
-    Board.refresh(); UI.refresh();
-    setStatus('Resolving the square…');
-    await resolveTileAction(cp);
-    await finishResolved(cp, isDoubles);
+    });
   }
 
-  async function resolveJailRoll(cp, d1, d2, total, isDoubles) {
+  // ── Jail roll ─────────────────────────────────────────────────────────────
+
+  function handleJailRoll(cp, d1, d2, total, isDoubles) {
     cp.jailTurns++;
 
     if (isDoubles) {
-      cp.inJail = false; cp.jailTurns = 0;
+      // Doubles: get out free, move but don't re-roll
+      cp.inJail    = false;
+      cp.jailTurns = 0;
       GameState.log(`${cp.name} rolled doubles — out of Traffic Jam!`);
-      setStatus('Moving…');
-      await doMovement(cp, total);
-      Board.refresh(); UI.refresh();
-      setStatus('Resolving the square…');
-      await resolveTileAction(cp);
-      await finishResolved(cp, false);     // out on doubles → no extra re-roll
-      return;
-    }
-
-    if (cp.jailTurns >= 3) {
+      moveAndAct(cp, total, false); // no re-roll on doubles out of jail
+    } else if (cp.jailTurns >= 3) {
+      // Must pay after 3 turns
       GameState.log(`${cp.name} must pay bail after 3 turns in Traffic Jam.`);
       const result = bank.pay(cp, null, GAME_CONFIG.JAIL_BAIL, GameState);
       if (result.ok) {
-        cp.inJail = false; cp.jailTurns = 0;
-        setStatus('Moving…');
-        await doMovement(cp, total);
-        Board.refresh(); UI.refresh();
-        setStatus('Resolving the square…');
-        await resolveTileAction(cp);
-        await finishResolved(cp, false);
+        cp.inJail    = false;
+        cp.jailTurns = 0;
+        moveAndAct(cp, total, false);
       } else {
         UI.showShortfallPanel(cp, GameState.shortfallAmount);
-        setStatus('Action required — settle the shortfall');
-        setAutomating(false);              // paused; resumeAfterPause() handles it
         UI.refresh();
       }
-      return;
-    }
-
-    GameState.log(`${cp.name} stays in Traffic Jam (turn ${cp.jailTurns}/3).`);
-    GameState.turnPhase = TurnPhase.CAN_END_TURN;
-    UI.refresh();
-    await finishResolved(cp, false);
-  }
-
-  /** Decide what happens once a square is resolved: re-roll, pause, or advance. */
-  async function finishResolved(cp, isDoubles) {
-    if (GameState.turnPhase === TurnPhase.GAME_OVER) {
-      setAutomating(false);
-      setStatus('Game over');
-      return;
-    }
-    if (GameState.turnPhase === TurnPhase.AWAITING_PAY) {
-      return;   // still paused on a shortfall — settled later by the player
-    }
-    if (isDoubles && cp.status === 'active' && !cp.inJail) {
-      GameState.turnPhase = TurnPhase.WAITING_ROLL;   // doubles → roll again
-      setAutomating(false);
-      setStatus('Doubles! Roll again');
+    } else {
+      // Still in jail
+      GameState.log(`${cp.name} stays in Traffic Jam (turn ${cp.jailTurns}/3).`);
+      GameState.turnPhase = TurnPhase.CAN_END_TURN;
       UI.refresh();
-      UI.toast(`${cp.name} rolled doubles — roll again!`);
-      return;
     }
-    await autoAdvance();
   }
 
-  /** Wait the UX delay, then hand the turn to the next active player. */
-  async function autoAdvance() {
-    clearAdvanceTimer();
-    setAutomating(true);
-    setStatus('Passing to next player…');
-    UI.refresh();
+  // ── Normal roll ───────────────────────────────────────────────────────────
 
-    await new Promise(resolve => {
-      _advanceTimer = setTimeout(() => { _advanceTimer = null; resolve(); }, AUTO_ADVANCE_MS);
-    });
+  function handleNormalRoll(cp, d1, d2, total, isDoubles) {
+    if (isDoubles) {
+      GameState.doublesCount++;
+      if (GameState.doublesCount >= 3) {
+        // Three doubles in a row → jail
+        GameState.log(`${cp.name} rolled doubles 3 times — sent to Traffic Jam!`);
+        GameState.sendToJail(cp);
+        Board.refresh();
+        UI.refresh();
+        return;
+      }
+    }
 
-    UI.closeModal('modalCard');     // dismiss any lingering info modal
-    UI.hideShortfallPanel();
-    GameState.advanceTurn();
-    Board.refresh(); UI.refresh();
-    Board.centerAlert(`${GameState.currentPlayer.name}'s turn`);
-    setAutomating(false);
-    setStatus(`${GameState.currentPlayer.name} — roll the dice`);
+    moveAndAct(cp, total, isDoubles);
+  }
+
+  // ── Movement ─────────────────────────────────────────────────────────────
+
+  function moveAndAct(player, steps, grantReroll) {
+    const oldPos = player.position;
+    player.position = (player.position + steps) % 40;
+
+    // Passed GO?
+    if (player.position < oldPos || (oldPos + steps >= 40)) {
+      // Only grant GO salary if actually passed (not if landed on GO itself — handled in space action)
+      if (player.position !== 0) {
+        bank.pay(null, player, GAME_CONFIG.GO_SALARY, GameState);
+        bank.chargePassGoInterest(player, GameState);
+        GameState.log(`${player.name} passed GO — collected ₹${GAME_CONFIG.GO_SALARY}L.`);
+        Board.centerAlert(`${player.name} passed GO! +₹${GAME_CONFIG.GO_SALARY}L`);
+      }
+    }
+
+    Board.highlightSpace(player.position);
+    Board.refreshTokens();
+
+    // Slight delay for visual feedback before acting
+    setTimeout(() => {
+      executeSpaceAction(player, grantReroll);
+    }, 400);
   }
 
   // ── Space actions ─────────────────────────────────────────────────────────
 
-  function executeSpaceAction(player) {
+  function executeSpaceAction(player, grantReroll) {
     const space = GAME_CONFIG.getSpace(player.position);
     GameState.log(`${player.name} landed on ${space.name}.`);
     Board.centerAlert(space.name);
@@ -382,190 +200,171 @@ const Game = (() => {
         if (space.subtype === 'go') {
           // Landed directly on GO — collect salary
           bank.pay(null, player, GAME_CONFIG.GO_SALARY, GameState);
-          GameState.recordTxn({
-            category: 'system', tone: 'credit', amount: GAME_CONFIG.GO_SALARY,
-            desc: `${player.name} landed on GO — salary collected`,
-            parties: [{ id: player.id, delta: GAME_CONFIG.GO_SALARY }],
-          });
-          if (typeof AUDIO !== 'undefined') AUDIO.play('cash');
           GameState.log(`${player.name} landed on GO — collected ₹${GAME_CONFIG.GO_SALARY}L.`);
-          afterSpaceAction(player);
+          afterSpaceAction(player, grantReroll);
         } else if (space.subtype === 'go_to_jail') {
-          GameState.sendToJail(player);   // sets CAN_END_TURN
-          Board.refresh(); UI.refresh();
+          GameState.sendToJail(player);
         } else {
           // Jail (just visiting) or Free Parking — no action
-          afterSpaceAction(player);
+          afterSpaceAction(player, grantReroll);
         }
         break;
 
       case 'tax':
-        handleTax(player, space);
-        return; // resolves internally
+        handleTax(player, space, grantReroll);
+        return; // returns internally
 
       case 'chance':
         CARDS.drawHustle(player, GameState, bank, UI);
+        // After card action, check if a pendingSpaceAction was set
         if (GameState.pendingSpaceAction) {
           GameState.pendingSpaceAction = false;
-          executeSpaceAction(player);   // card moved the player — re-evaluate
+          executeSpaceAction(player, false);
           return;
         }
-        afterSpaceAction(player);
+        afterSpaceAction(player, grantReroll);
         break;
 
       case 'community_chest':
         CARDS.drawGossip(player, GameState, bank, UI);
         if (GameState.pendingSpaceAction) {
           GameState.pendingSpaceAction = false;
-          executeSpaceAction(player);
+          executeSpaceAction(player, false);
           return;
         }
-        afterSpaceAction(player);
+        afterSpaceAction(player, grantReroll);
         break;
 
       case 'property':
       case 'railway':
       case 'utility':
-        handlePropertyLanding(player, space);
+        handlePropertyLanding(player, space, grantReroll);
         return;
 
       default:
-        afterSpaceAction(player);
+        afterSpaceAction(player, grantReroll);
     }
 
     Board.refresh();
     UI.refresh();
   }
 
-  function handleTax(player, space) {
+  function handleTax(player, space, grantReroll) {
     let amount = space.amount;
 
     if (space.subtype === 'income') {
-      // Player pays the lesser of flat ₹20L or 10% of total assets
+      // Player chooses flat ₹20L or 10% of total assets
       const tenPercent = Math.floor(calcTotalAssets(player) * GAME_CONFIG.INCOME_TAX_PERCENT);
       amount = Math.min(GAME_CONFIG.INCOME_TAX_FLAT, tenPercent);
       GameState.log(`${player.name} chose ₹${amount}L income tax (flat=${GAME_CONFIG.INCOME_TAX_FLAT}L, 10%=${tenPercent}L).`);
     }
 
     const result = bank.pay(player, null, amount, GameState);
-    GameState.recordTxn({
-      category: 'system', tone: 'debit', amount,
-      desc: `${player.name} paid ${space.name} (₹${amount}L)`,
-      parties: [{ id: player.id, delta: -amount }],
-    });
-    if (typeof AUDIO !== 'undefined') AUDIO.play('atm');
     if (!result.ok) {
-      UI.showShortfallPanel(player, GameState.shortfallAmount);   // → AWAITING_PAY (pause)
+      UI.showShortfallPanel(player, GameState.shortfallAmount);
     } else {
       GameState.log(`${player.name} paid ₹${amount}L tax.`);
-      afterSpaceAction(player);
+      afterSpaceAction(player, grantReroll);
     }
     Board.refresh();
     UI.refresh();
   }
 
-  function handlePropertyLanding(player, space) {
+  function handlePropertyLanding(player, space, grantReroll) {
     const ps = GameState.propertyState[space.position];
 
-    if (!ps) { afterSpaceAction(player); return; }
+    if (!ps) { afterSpaceAction(player, grantReroll); return; }
 
     if (ps.owner === null) {
-      // Unowned → PAUSE the auto-advance and wait for Buy / Auction / decline.
+      // Unowned: offer buy or auction — save doubles flag so it survives the modal
+      GameState.pendingReroll = grantReroll;
       GameState.turnPhase = TurnPhase.BUY_DECISION;
       UI.refresh();
       UI.showBuyDecision(space.position);
+      // Game flow continues via confirmBuy() / startAuction() called from modal buttons
       return;
     }
 
     if (ps.owner === player.id) {
+      // Own property — no action
       GameState.log(`${player.name} landed on their own property — no rent.`);
-      afterSpaceAction(player);
+      afterSpaceAction(player, grantReroll);
       return;
     }
 
     if (ps.mortgaged) {
       GameState.log(`${space.name} is mortgaged — no rent collected.`);
-      afterSpaceAction(player);
+      afterSpaceAction(player, grantReroll);
       return;
     }
 
-    // Auto-pay rent to the owner.
+    // Pay rent to owner
     const diceTotal = GameState.lastDice.d1 + GameState.lastDice.d2;
     const rent      = bank.calcRent(player, space.position, diceTotal, GameState);
     const owner     = GameState.getPlayerById(ps.owner);
 
     GameState.log(`${player.name} pays ₹${rent}L rent to ${owner.name} for ${space.name}.`);
     const result = bank.pay(player, owner, rent, GameState);
-    GameState.recordTxn({
-      category: 'rent', tone: 'neutral', amount: rent,
-      desc: `${player.name} paid ₹${rent}L rent to ${owner.name} (${space.name})`,
-      parties: [{ id: player.id, delta: -rent }, { id: owner.id, delta: rent }],
-    });
-    if (typeof AUDIO !== 'undefined') AUDIO.play('cash');
     if (!result.ok) {
       UI.showShortfallPanel(player, GameState.shortfallAmount);
       GameState.shortfallCreditor = owner.id;
     } else {
-      Board.centerAlert(`${player.name} pays ₹${rent}L rent to ${owner.name}`);
-      afterSpaceAction(player);
+      Board.centerAlert(`${player.name} → ₹${rent}L rent to ${owner.name}`);
+      afterSpaceAction(player, grantReroll);
     }
 
     Board.refresh();
     UI.refresh();
   }
 
-  /** Mark the square fully resolved (ready for auto-advance). */
-  function afterSpaceAction(player) {
+  function afterSpaceAction(player, grantReroll) {
     if (GameState.turnPhase === TurnPhase.GAME_OVER) return;
     if (GameState.turnPhase === TurnPhase.AWAITING_PAY) return;
-    GameState.turnPhase = TurnPhase.CAN_END_TURN;
-    Board.refresh();
-    UI.refresh();
-  }
 
-  // ── Buy / Auction callbacks (resolve the paused BUY_DECISION) ─────────────
-
-  function confirmBuy(position) {
-    const cp = GameState.currentPlayer;
-    const result = GameState.buyProperty(cp, position, bank);   // → CAN_END_TURN
-    if (result.ok) {
-      UI.toast(`Purchased! ₹${GAME_CONFIG.getSpace(position).price}L`);
-      if (typeof AUDIO !== 'undefined') AUDIO.play('buy');   // paper-stamp / signing
-      Board.refresh();
-    }
-    UI.refresh();
-    resumeAfterPause();
-  }
-
-  function startAuction(position) {
-    GameState.auctionPosition = position;
-    UI.showAuction(position);   // phase stays BUY_DECISION until completeAuction
-  }
-
-  /** Player closed the buy prompt / cancelled the auction without buying. */
-  function declinePurchase() {
-    if (GameState.turnPhase !== TurnPhase.BUY_DECISION) return;
-    GameState.auctionPosition = null;
-    GameState.log(`${GameState.currentPlayer.name} declined to buy — square left unsold.`);
-    GameState.turnPhase = TurnPhase.CAN_END_TURN;
-    UI.refresh();
-    resumeAfterPause();
-  }
-
-  function completeAuction(winnerIdx, position, bid) {
-    const winner = GameState.players[winnerIdx];
-    const result = bank.completeAuction(winner, position, bid, GameState);
-    if (result.ok) {
-      UI.toast(`${winner.name} won ${GAME_CONFIG.getSpace(position).name} for ₹${bid}L!`);
-      if (typeof AUDIO !== 'undefined') AUDIO.play('sold');   // gavel — Sold!
-    }
-    GameState.auctionPosition = null;
-    if (GameState.turnPhase !== TurnPhase.GAME_OVER) {
+    if (grantReroll && player.status === 'active') {
+      // Rolled doubles — give another roll (unless just landed in jail)
+      if (!player.inJail) {
+        GameState.turnPhase = TurnPhase.WAITING_ROLL;
+        UI.toast(`${player.name} rolled doubles — roll again!`);
+      } else {
+        GameState.turnPhase = TurnPhase.CAN_END_TURN;
+      }
+    } else {
       GameState.turnPhase = TurnPhase.CAN_END_TURN;
     }
     Board.refresh();
     UI.refresh();
-    resumeAfterPause();
+  }
+
+  // ── Buy / Auction callbacks ───────────────────────────────────────────────
+
+  function confirmBuy(position) {
+    const cp = GameState.currentPlayer;
+    const result = GameState.buyProperty(cp, position, bank);
+    if (result.ok) {
+      UI.toast(`Purchased! ₹${GAME_CONFIG.getSpace(position).price}L`);
+      Board.refresh();
+      afterSpaceAction(cp, GameState.pendingReroll);
+    }
+    UI.refresh();
+  }
+
+  function startAuction(position) {
+    GameState.auctionPosition = position;
+    UI.showAuction(position);
+  }
+
+  function completeAuction(winnerIdx, position, bid) {
+    const winner = GameState.players[winnerIdx];
+    const cp     = GameState.currentPlayer;
+    const result = bank.completeAuction(winner, position, bid, GameState);
+    if (result.ok) {
+      UI.toast(`${winner.name} won ${GAME_CONFIG.getSpace(position).name} for ₹${bid}L!`);
+    }
+    GameState.auctionPosition = null;
+    Board.refresh();
+    afterSpaceAction(cp, GameState.pendingReroll);
+    UI.refresh();
   }
 
   // ── Jail payment buttons ──────────────────────────────────────────────────
@@ -575,7 +374,6 @@ const Game = (() => {
     const result = GameState.attemptJailEscape(cp, bank, 'bail');
     if (result.ok) {
       UI.toast(`${cp.name} paid bail — now roll the dice!`);
-      if (typeof AUDIO !== 'undefined') AUDIO.play('atm');
     }
     UI.refresh();
   }
@@ -589,73 +387,49 @@ const Game = (() => {
     UI.refresh();
   }
 
-  // ── Shortfall settlement → resume the paused turn ─────────────────────────
+  // ── End turn ─────────────────────────────────────────────────────────────
 
-  /** After any cash-raising action, see if the player's shortfall is cleared. */
-  function checkShortfallResolved() {
-    if (GameState.turnPhase !== TurnPhase.AWAITING_PAY) return;
-    const cp = GameState.currentPlayer;
-    const creditor = GameState.shortfallCreditor !== null
-      ? GameState.getPlayerById(GameState.shortfallCreditor)
-      : null;
-    GameState.resolveShortfall(cp, bank, creditor);
-    if (cp.cash >= 0) { GameState.shortfallCreditor = null; UI.hideShortfallPanel(); }
+  function endTurn() {
+    if (GameState.turnPhase !== TurnPhase.CAN_END_TURN) {
+      UI.toast("Can't end turn yet.", 'error'); return;
+    }
+    UI.hideShortfallPanel();
+    GameState.advanceTurn();
+    Board.refresh();
     UI.refresh();
-    resumeAfterPause();   // if now CAN_END_TURN / GAME_OVER, continue the turn
+    Board.centerAlert(`${GameState.currentPlayer.name}'s turn`);
   }
 
   // ── Building / mortgage callbacks (called from UI modal buttons) ──────────
 
   function mortgageProperty(position) {
     const result = bank.mortgage(GameState.currentPlayer, position, GameState);
-    if (result.ok) {
-      if (typeof AUDIO !== 'undefined') AUDIO.play('vault');   // mortgage cash-in cha-ching
-      Board.refresh(); UI.refresh(); checkShortfallResolved();
-    }
+    if (result.ok) { Board.refresh(); UI.refresh(); }
   }
 
   function unmortgageProperty(position) {
     const result = bank.unmortgage(GameState.currentPlayer, position, GameState);
-    if (result.ok) {
-      if (typeof AUDIO !== 'undefined') AUDIO.play('atm');
-      Board.refresh(); UI.refresh();
-    }
+    if (result.ok) { Board.refresh(); UI.refresh(); }
   }
 
   function buildOffice(position) {
     const result = bank.buyOffice(GameState.currentPlayer, position, GameState);
-    if (result.ok) {
-      UI.toast('Office built!');
-      if (typeof AUDIO !== 'undefined') AUDIO.play('build');   // wooden block placement
-      Board.refresh(); UI.refresh();
-    }
+    if (result.ok) { UI.toast('Office built!'); Board.refresh(); UI.refresh(); }
   }
 
   function sellOffice(position) {
     const result = bank.sellOffice(GameState.currentPlayer, position, GameState);
-    if (result.ok) {
-      UI.toast('Office sold.');
-      if (typeof AUDIO !== 'undefined') AUDIO.play('cash');
-      Board.refresh(); UI.refresh(); checkShortfallResolved();
-    }
+    if (result.ok) { UI.toast('Office sold.'); Board.refresh(); UI.refresh(); }
   }
 
   function buildHQ(position) {
     const result = bank.buyHQ(GameState.currentPlayer, position, GameState);
-    if (result.ok) {
-      UI.toast('Headquarters built!');
-      if (typeof AUDIO !== 'undefined') AUDIO.play('build');
-      Board.refresh(); UI.refresh();
-    }
+    if (result.ok) { UI.toast('🏢 HQ built!'); Board.refresh(); UI.refresh(); }
   }
 
   function sellHQ(position) {
     const result = bank.sellHQ(GameState.currentPlayer, position, GameState);
-    if (result.ok) {
-      UI.toast('HQ sold.');
-      if (typeof AUDIO !== 'undefined') AUDIO.play('cash');
-      Board.refresh(); UI.refresh(); checkShortfallResolved();
-    }
+    if (result.ok) { UI.toast('HQ sold.'); Board.refresh(); UI.refresh(); }
   }
 
   // ── Loan callbacks ────────────────────────────────────────────────────────
@@ -664,19 +438,22 @@ const Game = (() => {
     const result = bank.grantLoan(GameState.currentPlayer, amount, GameState);
     if (result.ok) {
       UI.toast(`₹${amount}L loan received!`);
-      if (typeof AUDIO !== 'undefined') AUDIO.play('vault');   // vault / cha-ching
+      // If we were in a shortfall, check if it's now resolved
+      if (GameState.turnPhase === TurnPhase.AWAITING_PAY) {
+        GameState.resolveShortfall(
+          GameState.currentPlayer,
+          bank,
+          GameState.shortfallCreditor !== null ? GameState.getPlayerById(GameState.shortfallCreditor) : null
+        );
+        if (GameState.currentPlayer.cash >= 0) UI.hideShortfallPanel();
+      }
       UI.refresh();
-      checkShortfallResolved();   // resume the turn if this cleared a shortfall
     }
   }
 
   function repayLoan(amount) {
     const result = bank.repayLoan(GameState.currentPlayer, amount, GameState);
-    if (result.ok) {
-      UI.toast(`₹${amount}L repaid.`);
-      if (typeof AUDIO !== 'undefined') AUDIO.play('cash');
-      UI.refresh();
-    }
+    if (result.ok) { UI.toast(`₹${amount}L repaid.`); UI.refresh(); }
   }
 
   // ── Asset calculation (for income tax) ───────────────────────────────────
@@ -712,7 +489,6 @@ const Game = (() => {
     confirmBuy,
     startAuction,
     completeAuction,
-    declinePurchase,
     mortgageProperty,
     unmortgageProperty,
     buildOffice,
@@ -720,6 +496,4 @@ const Game = (() => {
     buildHQ,
     sellHQ,
     takeLoan,
-    repayLoan,
-  };
-})();
+    rep
