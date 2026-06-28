@@ -7,7 +7,7 @@
 const GAME_CONFIG = {
 
   // ── Financial constants ────────────────────────────────────────────────────
-  STARTING_CASH:        500,   // ₹5 Crores per player
+  STARTING_CASH:       1500,   // ₹15 Crores per player
   GO_SALARY:             20,   // ₹20L for passing / landing on GO
   JAIL_BAIL:              5,   // ₹5L to pay bail
   INCOME_TAX_FLAT:       20,   // ₹20L flat
