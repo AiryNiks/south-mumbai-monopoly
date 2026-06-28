@@ -167,6 +167,21 @@ const AUDIO = (() => {
       noiseBurst({ t: 0, dur: 0.05, type: 'highpass', freq: 5000, gain: 0.05 });
     },
 
+    // Receiving money (rent, GO salary, sales, card winnings) — an ATM dispensing
+    // and counting notes: a soft motor whirr, a riffle of bills, then a ready beep.
+    withdraw() {
+      // dispenser motor whirr
+      tone({ freq: 72,  endFreq: 124, type: 'sawtooth', dur: 0.34, gain: 0.09 });
+      tone({ freq: 150, endFreq: 108, type: 'triangle', dur: 0.30, gain: 0.06 });
+      // notes riffling out as they are counted
+      for (let i = 0; i < 4; i++) {
+        noiseBurst({ t: 0.06 + i * 0.07, dur: 0.035, type: 'highpass', freq: 3200,
+                     gain: 0.10, attack: 0.001 });
+      }
+      // "take your cash" ready beep
+      tone({ t: 0.42, freq: 1650, type: 'sine', dur: 0.12, gain: 0.10 });
+    },
+
     // Taking a loan / mortgage — a heavy vault + cash-register "cha-ching".
     vault() {
       tone({ freq: 90, endFreq: 60, type: 'sine', dur: 0.4, gain: 0.3 });        // vault body

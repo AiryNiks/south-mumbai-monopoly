@@ -30,12 +30,14 @@ const Game = (() => {
     document.getElementById('btnStartGame').addEventListener('click', startGame);
     document.getElementById('btnRestartGame').addEventListener('click', () => location.reload());
 
-    // Close modals on backdrop click. Closing the Buy prompt counts as declining.
+    // Close modals on backdrop click. Closing the Buy prompt sends the lot to auction.
+    // The auction modal itself is NOT dismissable — it must be resolved with Bid/Pass.
     document.querySelectorAll('.modal-backdrop').forEach(m => {
       m.addEventListener('click', e => {
         if (e.target !== m) return;
+        if (m.id === 'modalAuction') return;   // no escaping a live auction
         UI.closeModal(m.id);
-        if ((m.id === 'modalBuy' || m.id === 'modalAuction') &&
+        if (m.id === 'modalBuy' &&
             GameState && GameState.turnPhase === TurnPhase.BUY_DECISION) {
           declinePurchase();
         }
@@ -157,6 +159,7 @@ const Game = (() => {
   let _automating   = false;      // an automated sequence is currently running
   let _advanceTimer = null;       // the pending auto-advance (pass-turn) timer
   let _tileResolve  = null;       // resolver for the in-flight resolveTileAction()
+  let _auction      = null;       // active turn-by-turn auction state (see startAuction)
 
   /** Cancel a pending auto-advance timer (called on reset / re-entry). */
   function clearAdvanceTimer() {
@@ -205,7 +208,7 @@ const Game = (() => {
       bank.chargePassGoInterest(player, GameState);
       GameState.log(`${player.name} passed GO — collected ₹${GAME_CONFIG.GO_SALARY}L.`);
       Board.centerAlert(`${player.name} passed GO! +₹${GAME_CONFIG.GO_SALARY}L`);
-      if (typeof AUDIO !== 'undefined') AUDIO.play('cash');
+      if (typeof AUDIO !== 'undefined') AUDIO.play('withdraw');
     }
   }
 
@@ -419,7 +422,7 @@ const Game = (() => {
             desc: `${player.name} landed on GO — salary collected`,
             parties: [{ id: player.id, delta: GAME_CONFIG.GO_SALARY }],
           });
-          if (typeof AUDIO !== 'undefined') AUDIO.play('cash');
+          if (typeof AUDIO !== 'undefined') AUDIO.play('withdraw');
           GameState.log(`${player.name} landed on GO — collected ₹${GAME_CONFIG.GO_SALARY}L.`);
           afterSpaceAction(player);
         } else if (space.subtype === 'go_to_jail') {
@@ -533,7 +536,7 @@ const Game = (() => {
       desc: `${player.name} paid ₹${rent}L rent to ${owner.name} (${space.name})`,
       parties: [{ id: player.id, delta: -rent }, { id: owner.id, delta: rent }],
     });
-    if (typeof AUDIO !== 'undefined') AUDIO.play('cash');
+    if (typeof AUDIO !== 'undefined') AUDIO.play('withdraw');
     if (!result.ok) {
       UI.showShortfallPanel(player, GameState.shortfallAmount);
       GameState.shortfallCreditor = owner.id;
@@ -569,28 +572,121 @@ const Game = (() => {
     resumeAfterPause();
   }
 
+  // ── Turn-by-turn auction ───────────────────────────────────────────────────
+  // Every active player bids in turn order (starting with the current player).
+  // On your turn you either RAISE (a bid strictly above the current high bid and
+  // within your cash) or PASS (drop out for good). When only one bidder remains,
+  // they win at the current high bid. If nobody bids at all, the lot is unsold.
+
+  /** Begin an auction for `position`. Bidding order starts at the current player. */
   function startAuction(position) {
-    GameState.auctionPosition = position;
-    UI.showAuction(position);   // phase stays BUY_DECISION until completeAuction
-  }
-
-  /** Player closed the buy prompt / cancelled the auction without buying. */
-  function declinePurchase() {
-    if (GameState.turnPhase !== TurnPhase.BUY_DECISION) return;
-    GameState.auctionPosition = null;
-    GameState.log(`${GameState.currentPlayer.name} declined to buy — square left unsold.`);
-    GameState.turnPhase = TurnPhase.CAN_END_TURN;
-    UI.refresh();
-    resumeAfterPause();
-  }
-
-  function completeAuction(winnerIdx, position, bid) {
-    const winner = GameState.players[winnerIdx];
-    const result = bank.completeAuction(winner, position, bid, GameState);
-    if (result.ok) {
-      UI.toast(`${winner.name} won ${GAME_CONFIG.getSpace(position).name} for ₹${bid}L!`);
-      if (typeof AUDIO !== 'undefined') AUDIO.play('sold');   // gavel — Sold!
+    const n = GameState.players.length;
+    const order = [];
+    for (let i = 0; i < n; i++) {
+      const idx = (GameState.currentPlayerIdx + i) % n;
+      const p = GameState.players[idx];
+      if (p.status === 'active') order.push(p.id);
     }
+    GameState.auctionPosition = position;
+    _auction = { position, order, turn: -1, currentBid: 0, highBidder: null, out: [] };
+    GameState.log(`Auction opened for ${GAME_CONFIG.getSpace(position).name}.`);
+    if (typeof AUDIO !== 'undefined') AUDIO.play('gavel');   // "auction is open"
+    advanceAuction();
+  }
+
+  /** Number of bidders still in the running (not passed). */
+  function auctionLiveCount() {
+    if (!_auction) return 0;
+    return _auction.order.filter(id => !_auction.out.includes(id)).length;
+  }
+
+  /** Move to the next live bidder, or finalize when the lot is decided. */
+  function advanceAuction() {
+    if (!_auction) return;
+    const live = auctionLiveCount();
+    // Everyone passed → unsold. One bidder left who already holds the high bid → they win.
+    // (If one player remains but nobody has bid yet, they still get a turn to open or pass.)
+    if (live === 0) { finalizeAuction(); return; }
+    if (live === 1 && _auction.highBidder != null) { finalizeAuction(); return; }
+
+    const n = _auction.order.length;
+    let guard = 0;
+    do {
+      _auction.turn = (_auction.turn + 1) % n;
+      guard++;
+    } while (_auction.out.includes(_auction.order[_auction.turn]) && guard <= n);
+
+    const bidder = GameState.getPlayerById(_auction.order[_auction.turn]);
+    const minBid = _auction.currentBid > 0
+      ? _auction.currentBid + 1
+      : GAME_CONFIG.AUCTION_MIN_BID;
+
+    UI.showAuction(_auction.position, {
+      bidderName:     bidder.name,
+      bidderCash:     bidder.cash,
+      currentBid:     _auction.currentBid,
+      highBidderName: _auction.highBidder != null
+        ? GameState.getPlayerById(_auction.highBidder).name : null,
+      minBid,
+    });
+  }
+
+  /** The current bidder raises to `amount`. */
+  function placeBid(amount) {
+    if (!_auction) return;
+    const bidder = GameState.getPlayerById(_auction.order[_auction.turn]);
+    const minBid = _auction.currentBid > 0
+      ? _auction.currentBid + 1
+      : GAME_CONFIG.AUCTION_MIN_BID;
+    amount = Math.floor(Number(amount));
+
+    if (!Number.isFinite(amount) || amount < minBid) {
+      UI.toast(`Bid must be at least ₹${minBid}L.`, 'error');
+      if (typeof AUDIO !== 'undefined') AUDIO.errorFeedback();
+      return;
+    }
+    if (amount > bidder.cash) {
+      UI.toast(`${bidder.name} only has ₹${UI.fmt(bidder.cash)}L.`, 'error');
+      if (typeof AUDIO !== 'undefined') AUDIO.errorFeedback();
+      return;
+    }
+
+    _auction.currentBid = amount;
+    _auction.highBidder = bidder.id;
+    GameState.log(`${bidder.name} bids ₹${amount}L for ${GAME_CONFIG.getSpace(_auction.position).name}.`);
+    if (typeof AUDIO !== 'undefined') AUDIO.play('gavel');   // hammer knock on every bid
+    advanceAuction();
+  }
+
+  /** The current bidder passes (drops out for the rest of this auction). */
+  function passBid() {
+    if (!_auction) return;
+    const bidder = GameState.getPlayerById(_auction.order[_auction.turn]);
+    if (!_auction.out.includes(bidder.id)) _auction.out.push(bidder.id);
+    GameState.log(`${bidder.name} passes.`);
+    advanceAuction();
+  }
+
+  /** Settle the auction: award to the high bidder, or leave unsold if no bids. */
+  function finalizeAuction() {
+    const position = _auction ? _auction.position : GameState.auctionPosition;
+    const high     = _auction ? _auction.highBidder : null;
+    const bid      = _auction ? _auction.currentBid : 0;
+    _auction = null;
+    UI.closeModal('modalAuction');
+
+    if (high != null && bid > 0) {
+      const winner = GameState.getPlayerById(high);
+      const result = bank.completeAuction(winner, position, bid, GameState);
+      if (result.ok) {
+        UI.toast(`${winner.name} won ${GAME_CONFIG.getSpace(position).name} for ₹${bid}L!`);
+        if (typeof AUDIO !== 'undefined') AUDIO.play('sold');   // double gavel — Sold!
+      }
+    } else {
+      GameState.log(`${GAME_CONFIG.getSpace(position).name} drew no bids — left unsold.`);
+      UI.toast(`No bids — ${GAME_CONFIG.getSpace(position).name} left unsold.`);
+    }
+
     GameState.auctionPosition = null;
     if (GameState.turnPhase !== TurnPhase.GAME_OVER) {
       GameState.turnPhase = TurnPhase.CAN_END_TURN;
@@ -598,6 +694,17 @@ const Game = (() => {
     Board.refresh();
     UI.refresh();
     resumeAfterPause();
+  }
+
+  /** Player closed the buy prompt without buying → property goes to auction. */
+  function declinePurchase() {
+    if (GameState.turnPhase !== TurnPhase.BUY_DECISION) return;
+    if (_auction) return;   // an auction is already running; ignore stray closes
+    const position = GameState.auctionPosition != null
+      ? GameState.auctionPosition
+      : GameState.currentPlayer.position;
+    GameState.log(`${GameState.currentPlayer.name} declined to buy — ${GAME_CONFIG.getSpace(position).name} goes to auction.`);
+    startAuction(position);
   }
 
   // ── Jail payment buttons ──────────────────────────────────────────────────
@@ -679,7 +786,7 @@ const Game = (() => {
     const result = bank.sellOffice(GameState.currentPlayer, position, GameState);
     if (result.ok) {
       UI.toast('Office sold.');
-      if (typeof AUDIO !== 'undefined') AUDIO.play('cash');
+      if (typeof AUDIO !== 'undefined') AUDIO.play('withdraw');
       Board.refresh(); UI.refresh(); checkShortfallResolved();
     }
   }
@@ -697,7 +804,7 @@ const Game = (() => {
     const result = bank.sellHQ(GameState.currentPlayer, position, GameState);
     if (result.ok) {
       UI.toast('HQ sold.');
-      if (typeof AUDIO !== 'undefined') AUDIO.play('cash');
+      if (typeof AUDIO !== 'undefined') AUDIO.play('withdraw');
       Board.refresh(); UI.refresh(); checkShortfallResolved();
     }
   }
@@ -755,7 +862,8 @@ const Game = (() => {
   return {
     confirmBuy,
     startAuction,
-    completeAuction,
+    placeBid,
+    passBid,
     declinePurchase,
     mortgageProperty,
     unmortgageProperty,

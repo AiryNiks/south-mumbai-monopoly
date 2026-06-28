@@ -1,84 +1,55 @@
 # South Mumbai Business Game 🏙️
 
-> A high-stakes Monopoly-style board game set in South Mumbai's most iconic neighbourhoods — built entirely with vanilla JavaScript, HTML5, and CSS3.
+A Monopoly-style property-trading board game set across South Mumbai's most iconic addresses — built in pure vanilla **HTML, CSS, and JavaScript**. No frameworks, no build step, no backend, no API keys. Just open it and play.
+
+**▶ Play it:** `https://airyniks.github.io/south-mumbai-monopoly/`
 
 ---
 
 ## 🎮 Overview
 
-South Mumbai Business Game reimagines the classic property trading board game with real locations from South Mumbai. Buy Colaba Causeway, build offices on Marine Drive, charge rent on Nepean Sea Road, and bankrupt your rivals in the most expensive square mile in India.
+Buy Colaba Causeway, build offices on Marine Drive, charge rent on Nepean Sea Road, borrow from the Reserve Bank of India, and bankrupt your rivals across the most expensive square mile in the country.
 
-- **Players:** 2–4
-- **Starting Cash:** ₹500 Lakhs (₹5 Crores) per player
-- **Currency:** Indian Lakhs (₹L) — all values in Lakhs
-- **Goal:** Be the last player standing by bankrupting everyone else
+- **Players:** 2–4 (hot-seat, on one device)
+- **Starting cash:** ₹1,500 Lakhs (₹15 Crores) per player
+- **Currency:** Indian Lakhs (₹L) — 1 Crore = 100L
+- **Goal:** Be the last solvent player standing
+
+---
+
+## ✨ Highlights
+
+- **40-space board** of real South Mumbai landmarks, rendered on an 11×11 CSS grid.
+- **Heritage player tokens** — Gateway of India, Rajabai Clock Tower, Taj Mahal Palace, and the BSE Building, drawn as crisp inline-SVG monuments.
+- **Reserve Bank of India** — repo-rate-linked loans, mortgages, a live transaction ledger, and a CRR (cash-reserve) advisory.
+- **Two themed card decks** — *Mumbai Hustle* (Chance) and *Townie Gossip* (Community Chest), 16 cards each.
+- **Automatic turn engine** — roll, move, resolve, and pass play with no manual "end turn"; doubles re-roll, three doubles sends you to Traffic Jam.
+- **Procedural sound** — every effect is synthesised in-browser with the Web Audio API (no audio files), with a mute toggle.
+- **Light & dark themes** — a 1900s Bombay Art-Deco palette with a one-click dark mode, remembered between visits.
+
+---
+
+## 🕹️ How to Play
+
+1. Open the live link above (or open `index.html` locally in any modern browser).
+2. Choose **2–4 players** and enter names.
+3. Click **Begin Play**.
+4. Roll the dice, buy properties, build offices and HQs, and collect rent.
+5. Short on cash? Mortgage property, sell buildings, or take an RBI loan.
+6. Bankrupt everyone else to win.
 
 ---
 
 ## 🗺️ The Board
 
-40 spaces arranged in an 11×11 CSS grid, clockwise from GO:
+| Corner | Space | Effect |
+|--------|-------|--------|
+| 0 | GO | Collect ₹20L each time you pass or land |
+| 10 | Traffic Jam | Jail — just visiting, or stuck in Pedder Road traffic |
+| 20 | Sea View Terrace | Free parking — no cost, no penalty |
+| 30 | No-Parking Zone | Towed! Go directly to Traffic Jam |
 
-| Corner | Description |
-|--------|-------------|
-| GO (pos 0) | Collect ₹20L each time you pass or land |
-| Traffic Jam (pos 10) | Jail — stuck in Pedder Road traffic |
-| Sea View Terrace (pos 20) | Free Parking — no action |
-| No-Parking Zone (pos 30) | Go directly to Traffic Jam |
-
----
-
-## 🏠 Properties at a Glance
-
-| Colour | Properties | Price Range | Office Cost | HQ Cost |
-|--------|-----------|-------------|-------------|---------|
-| 🟤 Brown | Colaba Causeway, Crawford Market | ₹60L | ₹5L | ₹20L |
-| 🔵 Light Blue | Flora Fountain, Horniman Circle, Apollo Bunder | ₹100–120L | ₹5L | ₹20L |
-| 🩷 Pink | Grant Road, Esplanade, Fort Street | ₹140–160L | ₹10L | ₹30L |
-| 🟠 Orange | Strand Road, Ballard Pier, Princess Street | ₹180–200L | ₹10L | ₹30L |
-| 🔴 Red | Kala Ghoda, Marine Drive, Worli Sea Face | ₹220–240L | ₹15L | ₹40L |
-| 🟡 Yellow | Nariman Point, Cuffe Parade, Pedder Road | ₹260–280L | ₹15L | ₹40L |
-| 🟢 Green | Malabar Hill, Breach Candy, Altamount Road | ₹300–320L | ₹20L | ₹50L |
-| 🔷 Dark Blue | Carmichael Road, Nepean Sea Road | ₹350–400L | ₹20L | ₹50L |
-
-Full rent tables in [PROPERTY_REFERENCE.md](PROPERTY_REFERENCE.md).
-
----
-
-## 🚉 Railway Stations
-
-All four stations cost **₹200L** (mortgage ₹100L each).
-
-| Pos | Station |
-|-----|---------|
-| 5 | CSMT — UNESCO World Heritage terminus |
-| 14 | Churchgate — Western Railway southern terminus |
-| 25 | Marine Lines — near Oval Maidan |
-| 35 | Mumbai Central — long-distance & suburban hub |
-
-**Rent:** ₹25L (1 owned) → ₹50L (2) → ₹100L (3) → ₹200L (4)
-
----
-
-## ⚡ Utilities
-
-Both utilities cost **₹150L** (mortgage ₹75L each).
-
-| Pos | Utility |
-|-----|---------|
-| 12 | BEST Electricity |
-| 28 | Reliance Energy |
-
-**Rent:** 4× dice roll (1 owned) or 10× dice roll (2 owned)
-
----
-
-## 🃏 Card Decks
-
-- **Mumbai Hustle** (Chance) — 16 cards at positions 7, 22, 33
-- **Townie Gossip** (Community Chest) — 16 cards at positions 2, 17
-
-Cards include: advance to GO, Sea Link Shortcut, Traffic Jam (go to jail), BMC repairs, Kala Ghoda Art Exhibition (collect from all players), and Get Out of Jail Free cards.
+Property colour groups run from Brown (Colaba, Crawford) up to Dark Blue (Carmichael Road, Nepean Sea Road). Full rent tables are in [PROPERTY_REFERENCE.md](PROPERTY_REFERENCE.md), and the complete ruleset is in [rules.md](rules.md).
 
 ---
 
@@ -86,92 +57,78 @@ Cards include: advance to GO, Sea Link Shortcut, Traffic Jam (go to jail), BMC r
 
 | Rule | Value |
 |------|-------|
-| GO salary | ₹20L |
-| Jail bail | ₹5L |
-| Income Tax | ₹20L flat or 10% of assets (choose lower) |
+| Starting cash | ₹1,500L (₹15 Crores) |
+| GO salary | ₹20L per pass or landing |
+| Jail bail | ₹5L (forced after 3 turns) |
+| Income Tax | ₹20L flat or 10% of assets (lower) |
 | Sea Link Toll | ₹7.5L |
 | BMC Luxury Cess | ₹10L |
-| Mortgage interest | 10% of mortgage value to unmortgage |
-| Bank loan max | 3 loans × ₹100L each |
-| Loan interest | 10% charged on each pass of GO |
+| Mortgage | 50% of price; +10% interest to lift |
+| RBI loans | Up to 3 loans of ₹100L each |
+| Loan interest | Repo-rate-linked, accrues on passing GO |
+
+**Buildings:** you need a full colour-group **monopoly** to build, and must build **evenly** across the group. Offices (houses) go up to 4 per property, then convert to an **HQ** (hotel). Selling returns 50% of the build cost.
+
+**Bankruptcy:** if you owe more than you can possibly raise — by mortgaging, selling buildings, and borrowing — you're declared bankrupt automatically and your estate passes to your creditor. You can also concede manually with **Declare Bankruptcy**.
 
 ---
 
-## 🏗️ Buildings
+## 🛠️ Tech & Project Structure
 
-Properties must be in a **monopoly** (own all colours) before building. The even-building rule is enforced — you must build evenly across all properties in a group.
-
-- **Offices** (houses) — up to 4 per property
-- **HQ** (hotel) — replaces 4 offices; requires all group properties to have 4 offices first
-- Selling returns **50%** of build cost
-
----
-
-## 🚀 How to Play
-
-1. Open `index.html` in any modern browser
-2. Set player count (2–4) and enter names
-3. Click **Start Game**
-4. Roll dice, buy properties, build offices, collect rent
-5. Use the Bank Loans button if you're short on cash
-6. Last player standing wins
-
----
-
-## 🛠️ Tech Stack
-
-- **HTML5** — single `index.html` entry point
-- **CSS3** — 1900s Bombay Art Deco theme (cream & gold) with a dark mode toggle, 11×11 CSS grid board
-- **Vanilla JavaScript** — no frameworks, no build tools, no backend
-- **Web Audio API** — all sound effects are synthesised in-browser (no audio files)
-
-> **100% client-side & safe to publish.** The game runs entirely in the browser — there is no server, no database, and no API keys or secrets of any kind in this repository. Nothing sensitive is exposed via "Inspect Element."
-
-### File Structure
+Vanilla **HTML5 + CSS3 + JavaScript** — no dependencies, no build tooling. Sound is synthesised at runtime via the Web Audio API; there are no external assets required to play.
 
 ```
 south-mumbai-monopoly/
-├── index.html       — game entry point
-├── styles.css       — dark minimalist UI
-├── gameConfig.js    — all board data, prices, rents (edit here for customisation)
-├── cards.js         — Mumbai Hustle & Townie Gossip card decks
-├── bank.js          — Bank class (mortgages, loans, buildings, rent calculation)
-├── gameState.js     — turn state machine & game state singleton
-├── board.js         — board rendering & token/building display
-├── ui.js            — modals, player panels, dice animation, toasts
-└── main.js          — game controller & event wiring
+├── index.html       — entry point (loads everything below)
+├── styles.css       — Art-Deco theme + dark mode, 11×11 grid board
+├── audio.js         — Web Audio sound engine (procedural)
+├── gameConfig.js    — ALL game data: prices, rents, starting cash, board
+├── cards.js         — Mumbai Hustle & Townie Gossip decks
+├── bank.js          — money, mortgages, loans, buildings, rent
+├── gameState.js     — turn state machine & game state
+├── board.js         — board rendering, tokens, building display
+├── ui.js            — panels, modals, dice, toasts, RBI screen
+├── main.js          — game controller & event wiring
+├── rules.md         — full rules
+├── PROPERTY_REFERENCE.md — complete rent tables
+└── .nojekyll        — serves files as-is on GitHub Pages
 ```
+
+> All files live at the repository **root** and reference each other with relative paths. Keep them flat — moving the `.js`/`.css` files into subfolders will break the page.
 
 ---
 
-## 🌐 Publish on GitHub Pages (free, no tokens)
+## 🌐 Deploy on GitHub Pages (free, no tokens)
 
-Because the game is fully static, you can host it for free with GitHub Pages — no build step and no personal access token required:
+The game is fully static, so hosting is free and needs no personal access token:
 
-1. Create a new repository on GitHub and push this folder:
+1. Push every file in this folder to your repository's **root** (HTML, CSS, all `.js`, and `.nojekyll`):
 
    ```bash
-   git init
    git add .
-   git commit -m "South Mumbai Business Game"
-   git branch -M main
-   git remote add origin https://github.com/<your-username>/<your-repo>.git
-   git push -u origin main
+   git commit -m "Update South Mumbai Business Game"
+   git push
    ```
 
-2. On GitHub: **Settings → Pages → Source → Deploy from a branch**, pick `main` / `root`, and save.
-3. Your game goes live at `https://<your-username>.github.io/<your-repo>/`.
+2. On GitHub: **Settings → Pages → Build and deployment → Deploy from a branch → `main` / `root`**.
+3. Wait ~1 minute, then open `https://<your-username>.github.io/<your-repo>/` and **hard-refresh** (Ctrl + F5) to clear the cache.
 
-Use the GitHub Desktop app or a credential helper for authentication — never paste a personal access token into a script or commit it to the repo.
+**Updating tip:** always re-upload **all** the files you changed together. If you edit `gameConfig.js` (e.g. starting cash) but only re-upload some files, the live game keeps the old value until the new `gameConfig.js` is pushed — then hard-refresh to beat the browser cache.
+
+---
+
+## 🔒 Security & Privacy
+
+This game is **100% client-side**. There is no server, no database, and **no API keys, tokens, or secrets** anywhere in the code — nothing sensitive is exposed through "Inspect Element." Player names are sanitised before display, so the game is safe to publish publicly as-is.
 
 ---
 
 ## 📝 Customisation
 
-All game data lives in `gameConfig.js` — change property prices, rent tables, building costs, or card text there without touching any game logic.
+All tunable values live in **`gameConfig.js`** — starting cash, property prices, rent tables, building costs, loan limits, and the RBI repo-rate band. Change them there without touching any game logic.
 
-To add real photos, place images in an `images/` folder and update the `image:` field for each property in `gameConfig.js`.
+To add real photographs, drop images into an `images/` folder and point the `image:` field of each property in `gameConfig.js` at them. Missing images are hidden automatically, so the game always works without them.
 
 ---
 
-*South Mumbai Business Game — Where Heritage Meets High Stakes Real Estate*
+*South Mumbai Business Game — Where Heritage Meets High-Stakes Real Estate.*

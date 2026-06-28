@@ -6,8 +6,8 @@
 
 1. Open `index.html` in a modern browser
 2. Choose 2–4 players and enter names
-3. Click **Start Game**
-4. Each player starts with **₹500 Lakhs (₹5 Crores)** and their token on **GO**
+3. Click **Begin Play**
+4. Each player starts with **₹1,500 Lakhs (₹15 Crores)** and their token on **GO**
 5. The first player is chosen at random
 
 ---
@@ -221,7 +221,7 @@ When a player declines to buy a property, it goes to auction:
 
 | Rule | Value |
 |------|-------|
-| Starting cash | ₹500L (₹5 Crores) |
+| Starting cash | ₹1,500L (₹15 Crores) |
 | GO salary | ₹20L |
 | Jail bail | ₹5L |
 | Max jail turns before forced bail | 3 |

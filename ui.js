@@ -407,37 +407,49 @@ const UI = (() => {
 
   // ── Auction modal ─────────────────────────────────────────────────────────
 
-  function showAuction(position) {
-    const cfg = GAME_CONFIG.getSpace(position);
-    const modal = document.getElementById('modalAuction');
-    if (!modal) return;
+  /**
+   * Turn-by-turn auction prompt. Shows the property, the current high bid, and
+   * prompts ONE bidder at a time to raise or pass.
+   * @param {number} position  board position being auctioned
+   * @param {object} ctx       { bidderName, bidderCash, currentBid, highBidderName, minBid }
+   */
+  function showAuction(position, ctx) {
+    const cfg  = GAME_CONFIG.getSpace(position);
+    const body = document.getElementById('modalAuctionBody');
+    if (!body || !ctx) return;
 
-    document.getElementById('auctionPropName').textContent = cfg.name;
-    document.getElementById('auctionCurrentBid').textContent = `₹${GAME_CONFIG.AUCTION_MIN_BID}L`;
+    const highLine = ctx.highBidderName
+      ? `High bid: <strong>₹${fmt(ctx.currentBid)}L</strong> — ${ctx.highBidderName}`
+      : `No bids yet · opening at ₹${fmt(ctx.minBid)}L`;
+    const canAfford = ctx.bidderCash >= ctx.minBid;
 
-    // Populate bidder select
-    const select = document.getElementById('auctionBidder');
-    select.innerHTML = '';
-    GameState.players.forEach((p, i) => {
-      if (p.status !== 'active') return;
-      const opt = document.createElement('option');
-      opt.value = i;
-      opt.textContent = `${p.name} (₹${fmt(p.cash)}L)`;
-      select.appendChild(opt);
-    });
+    body.innerHTML = `
+      <div class="modal-title">Property Auction</div>
+      <div class="modal-desc"><strong>${cfg.name}</strong></div>
+      <div class="modal-desc">${highLine}</div>
+      <div class="modal-desc"><strong>${ctx.bidderName}</strong> to bid — cash ₹${fmt(ctx.bidderCash)}L</div>
+      <div class="auction-input-row">
+        <input id="auctionBidInput" type="number" min="${ctx.minBid}" step="1" value="${ctx.minBid}" ${canAfford ? '' : 'disabled'} />
+      </div>
+      ${canAfford ? '' : `<p class="buy-warn" style="padding:0 1.2rem 0.5rem">Not enough cash to reach ₹${fmt(ctx.minBid)}L — you can only pass.</p>`}
+      <div class="modal-actions">
+        <button id="btnPlaceBid" class="btn btn-primary" ${canAfford ? '' : 'disabled'}>Place Bid</button>
+        <button id="btnPassBid" class="btn btn-secondary">Pass</button>
+      </div>
+    `;
 
-    document.getElementById('auctionBidInput').value = GAME_CONFIG.AUCTION_MIN_BID;
-
-    document.getElementById('btnConfirmAuction').onclick = () => {
-      const winnerIdx = parseInt(document.getElementById('auctionBidder').value);
-      const bid       = parseFloat(document.getElementById('auctionBidInput').value);
-      closeModal('modalAuction');
-      if (typeof Game !== 'undefined') Game.completeAuction(winnerIdx, position, bid);
+    const input = document.getElementById('auctionBidInput');
+    const placeBtn = document.getElementById('btnPlaceBid');
+    if (placeBtn) placeBtn.onclick = () => {
+      const amt = parseInt(input.value, 10);
+      if (typeof Game !== 'undefined') Game.placeBid(amt);
     };
-    document.getElementById('btnCancelAuction').onclick = () => {
-      closeModal('modalAuction');
-      if (typeof Game !== 'undefined') Game.declinePurchase();
+    document.getElementById('btnPassBid').onclick = () => {
+      if (typeof Game !== 'undefined') Game.passBid();
     };
+    if (typeof AUDIO !== 'undefined') {
+      body.querySelectorAll('button').forEach(b => AUDIO.tactile(b));
+    }
 
     openModal('modalAuction');
   }

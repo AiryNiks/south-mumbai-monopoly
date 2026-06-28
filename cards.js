@@ -434,7 +434,7 @@ const CARDS = (() => {
     if (typeof AUDIO !== 'undefined') {
       const idx = gs.players.indexOf(drawer);
       const d   = idx >= 0 ? drawer.cash - before[idx] : 0;
-      if (d > 0) AUDIO.play('cash');
+      if (d > 0) AUDIO.play('withdraw');
     }
   }
 

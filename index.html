@@ -147,23 +147,10 @@
   </div>
 </div>
 
-<!-- Auction modal -->
+<!-- Auction modal — turn-by-turn bidding, built dynamically by UI.showAuction() -->
 <div class="modal-backdrop" id="modalAuction" aria-hidden="true">
   <div class="modal-box">
-    <div class="modal-title">Property Auction</div>
-    <div class="modal-desc" id="auctionPropName"></div>
-    <div class="modal-desc">Current bid: <strong id="auctionCurrentBid">₹1L</strong></div>
-
-    <div class="auction-input-row">
-      <select id="auctionBidder" aria-label="Bidder"><!-- filled by UI --></select>
-    </div>
-    <div class="auction-input-row">
-      <input id="auctionBidInput" type="number" min="1" step="1" placeholder="Bid amount (₹L)" />
-    </div>
-    <div class="modal-actions">
-      <button id="btnConfirmAuction" class="btn btn-primary">Confirm Bid</button>
-      <button id="btnCancelAuction"  class="btn btn-secondary">Cancel</button>
-    </div>
+    <div id="modalAuctionBody"><!-- built by UI.showAuction() --></div>
   </div>
 </div>
 
