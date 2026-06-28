@@ -121,8 +121,11 @@ Properties must be in a **monopoly** (own all colours) before building. The even
 ## 🛠️ Tech Stack
 
 - **HTML5** — single `index.html` entry point
-- **CSS3** — dark navy / gold theme, 11×11 CSS grid board
-- **Vanilla JavaScript** — no frameworks, no build tools
+- **CSS3** — 1900s Bombay Art Deco theme (cream & gold) with a dark mode toggle, 11×11 CSS grid board
+- **Vanilla JavaScript** — no frameworks, no build tools, no backend
+- **Web Audio API** — all sound effects are synthesised in-browser (no audio files)
+
+> **100% client-side & safe to publish.** The game runs entirely in the browser — there is no server, no database, and no API keys or secrets of any kind in this repository. Nothing sensitive is exposed via "Inspect Element."
 
 ### File Structure
 
@@ -138,6 +141,28 @@ south-mumbai-monopoly/
 ├── ui.js            — modals, player panels, dice animation, toasts
 └── main.js          — game controller & event wiring
 ```
+
+---
+
+## 🌐 Publish on GitHub Pages (free, no tokens)
+
+Because the game is fully static, you can host it for free with GitHub Pages — no build step and no personal access token required:
+
+1. Create a new repository on GitHub and push this folder:
+
+   ```bash
+   git init
+   git add .
+   git commit -m "South Mumbai Business Game"
+   git branch -M main
+   git remote add origin https://github.com/<your-username>/<your-repo>.git
+   git push -u origin main
+   ```
+
+2. On GitHub: **Settings → Pages → Source → Deploy from a branch**, pick `main` / `root`, and save.
+3. Your game goes live at `https://<your-username>.github.io/<your-repo>/`.
+
+Use the GitHub Desktop app or a credential helper for authentication — never paste a personal access token into a script or commit it to the repo.
 
 ---
 

@@ -52,18 +52,18 @@ const UI = (() => {
 
       const loans      = (player.loans || []).reduce((s, l) => s + l.principal + l.interest, 0);
       const netWorth   = calcNetWorth(player);
-      const jailBadge  = player.inJail ? `<span class="badge badge-jail">🚦 Traffic Jam</span>` : '';
-      const jailCards  = player.jailFreeCards ? `<span class="badge badge-card">🎟 ×${player.jailFreeCards}</span>` : '';
+      const jailBadge  = player.inJail ? `<span class="badge badge-jail">Detained</span>` : '';
+      const jailCards  = player.jailFreeCards ? `<span class="badge badge-card">Pardon ×${player.jailFreeCards}</span>` : '';
 
       panel.innerHTML = `
         <div class="player-header">
-          <span class="player-token-icon" style="color:${GAME_CONFIG.PLAYER_COLORS[idx]}">${GAME_CONFIG.PLAYER_TOKENS[idx]}</span>
+          ${GAME_CONFIG.monumentBadge(idx)}
           <span class="player-name-label">${player.name}</span>
           ${jailBadge}${jailCards}
         </div>
         <div class="player-stats">
           <span class="stat-cash">₹${fmt(player.cash)}L</span>
-          <span class="stat-props">${player.properties.length} 🏠</span>
+          <span class="stat-props">${player.properties.length} estates</span>
           ${loans > 0 ? `<span class="stat-loan">Loan: ₹${fmt(loans)}L</span>` : ''}
         </div>
         <div class="player-net-worth">Net worth ≈ ₹${fmt(netWorth)}L</div>
@@ -116,7 +116,7 @@ const UI = (() => {
     if (strip) {
       strip.style.borderColor = GAME_CONFIG.PLAYER_COLORS[GameState.currentPlayerIdx];
       strip.innerHTML = `
-        <span class="cp-token" style="color:${GAME_CONFIG.PLAYER_COLORS[GameState.currentPlayerIdx]}">${GAME_CONFIG.PLAYER_TOKENS[GameState.currentPlayerIdx]}</span>
+        ${GAME_CONFIG.monumentBadge(GameState.currentPlayerIdx, 'lg')}
         <span class="cp-name">${cp.name}</span>
         <span class="cp-cash">₹${fmt(cp.cash)}L</span>
       `;
@@ -129,14 +129,14 @@ const UI = (() => {
 
   function phaseLabel(phase) {
     const map = {
-      [TurnPhase.WAITING_ROLL]:  '🎲 Roll the dice',
-      [TurnPhase.ANIMATING]:     '⏳ Moving…',
-      [TurnPhase.SPACE_ACTION]:  '⚡ Action',
-      [TurnPhase.BUY_DECISION]:  '🏠 Buy or Auction?',
-      [TurnPhase.JAIL_DECISION]: '🚦 Jail',
-      [TurnPhase.AWAITING_PAY]:  '💸 Need to pay!',
-      [TurnPhase.CAN_END_TURN]:  '✅ End turn',
-      [TurnPhase.GAME_OVER]:     '🏆 Game Over!',
+      [TurnPhase.WAITING_ROLL]:  'Roll the dice',
+      [TurnPhase.ANIMATING]:     'Moving…',
+      [TurnPhase.SPACE_ACTION]:  'Action',
+      [TurnPhase.BUY_DECISION]:  'Buy or Auction?',
+      [TurnPhase.JAIL_DECISION]: 'Detained',
+      [TurnPhase.AWAITING_PAY]:  'Payment due',
+      [TurnPhase.CAN_END_TURN]:  'End turn',
+      [TurnPhase.GAME_OVER]:     'Game Over',
     };
     return map[phase] || phase;
   }
@@ -170,22 +170,38 @@ const UI = (() => {
     const die2 = document.getElementById('die2');
     if (!die1 || !die2) { callback && callback(); return; }
 
+    // Clatter of dice tumbling on a smooth surface.
+    if (typeof AUDIO !== 'undefined') AUDIO.play('dice');
+
     die1.classList.add('rolling');
     die2.classList.add('rolling');
 
-    let ticks = 0;
-    const interval = setInterval(() => {
+    // Ease-out: face-switching starts fast and progressively slows, so the roll
+    // naturally decelerates before revealing the final numbers.
+    const delays = [55, 60, 68, 80, 96, 116, 142, 176, 214];
+    let i = 0;
+
+    const settle = () => {
+      renderDieFace(die1, d1);
+      renderDieFace(die2, d2);
+      die1.classList.remove('rolling');
+      die2.classList.remove('rolling');
+      die1.classList.add('settle');
+      die2.classList.add('settle');
+      setTimeout(() => {
+        die1.classList.remove('settle');
+        die2.classList.remove('settle');
+      }, 280);
+      callback && callback();
+    };
+
+    const step = () => {
+      if (i >= delays.length) { settle(); return; }
       renderDieFace(die1, Math.ceil(Math.random() * 6));
       renderDieFace(die2, Math.ceil(Math.random() * 6));
-      if (++ticks >= 8) {
-        clearInterval(interval);
-        renderDieFace(die1, d1);
-        renderDieFace(die2, d2);
-        die1.classList.remove('rolling');
-        die2.classList.remove('rolling');
-        callback && callback();
-      }
-    }, 80);
+      setTimeout(step, delays[i++]);
+    };
+    step();
   }
 
   // ── Space / Property detail modal ─────────────────────────────────────────
@@ -252,8 +268,7 @@ const UI = (() => {
       else       html += `<p>Unowned — available to buy</p>`;
       if (ps.mortgaged) html += `<p class="badge badge-mortgage">MORTGAGED</p>`;
       if (ps.buildings > 0) {
-        const bText = ps.buildings === 5 ? '🏢 HQ' : `🏠 ${ps.buildings} office(s)`;
-        html += `<p>Development: ${bText}</p>`;
+        html += `<p class="dev-line">Development: ${bldLabel(ps.buildings)}</p>`;
       }
       html += `</div>`;
     }
@@ -344,11 +359,31 @@ const UI = (() => {
     const body   = document.getElementById('modalBuyBody');
     if (!modal || !body) return;
 
+    const grp        = cfg.color ? GAME_CONFIG.COLOR_GROUPS[cfg.color] : null;
+    const stripColor = grp ? grp.hex : 'var(--accent-gold)';
+    const groupLabel = cfg.color
+      ? cfg.color.replace(/-/g, ' ').toUpperCase()
+      : (cfg.type === 'railway' ? 'RAILWAY' : cfg.type === 'utility' ? 'UTILITY' : '');
+    const baseRent   = Array.isArray(cfg.rent) ? cfg.rent[0] : null;
+    const desc       = cfg.description || '';
+    const affordable = cp.cash >= cfg.price;
+
     body.innerHTML = `
-      <h2>${cfg.name}</h2>
-      <p class="modal-price">Purchase price: <strong>₹${cfg.price}L</strong></p>
-      <p>Your cash: ₹${fmt(cp.cash)}L</p>
-      ${cp.cash < cfg.price ? `<p class="warn">⚠️ You cannot afford this property.</p>` : ''}
+      <button class="modal-close" id="btnCloseBuy" aria-label="Close" title="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><line x1="7.5" y1="7.5" x2="16.5" y2="16.5"/><line x1="16.5" y1="7.5" x2="7.5" y2="16.5"/></svg></button>
+      <div class="buy-strip" style="background:${stripColor}"></div>
+      <div class="buy-head">
+        <h2 class="buy-title">${cfg.name}</h2>
+        ${groupLabel ? `<div class="buy-group">${groupLabel}</div>` : ''}
+      </div>
+      ${desc ? `<p class="buy-desc">${desc}</p>` : ''}
+      <div class="buy-stats">
+        <div class="stat-row highlight"><span>Purchase price</span><span>₹${cfg.price}L</span></div>
+        ${baseRent != null ? `<div class="stat-row"><span>Base rent</span><span>₹${baseRent}L</span></div>` : ''}
+        ${Array.isArray(cfg.rentMultiplier) ? `<div class="stat-row"><span>Rent</span><span>${cfg.rentMultiplier[0]}×–${cfg.rentMultiplier[1]}× dice</span></div>` : ''}
+        ${cfg.mortgage != null ? `<div class="stat-row"><span>Mortgage value</span><span>₹${cfg.mortgage}L</span></div>` : ''}
+        <div class="stat-row"><span>Your cash</span><span>₹${fmt(cp.cash)}L</span></div>
+      </div>
+      ${!affordable ? `<p class="buy-warn">You can't afford this — choose Auction.</p>` : ''}
     `;
 
     document.getElementById('btnBuyProperty').onclick = () => {
@@ -359,11 +394,14 @@ const UI = (() => {
       closeModal('modalBuy');
       if (typeof Game !== 'undefined') Game.startAuction(position);
     };
+    document.getElementById('btnCloseBuy').onclick = () => {
+      closeModal('modalBuy');
+      if (typeof Game !== 'undefined') Game.declinePurchase();
+    };
 
-    if (cp.cash < cfg.price) {
-      document.getElementById('btnBuyProperty').disabled = true;
-    }
+    document.getElementById('btnBuyProperty').disabled = !affordable;  // reset each open
 
+    closeModal('modalCard');   // avoid stacking a leftover card modal under the prompt
     openModal('modalBuy');
   }
 
@@ -396,7 +434,10 @@ const UI = (() => {
       closeModal('modalAuction');
       if (typeof Game !== 'undefined') Game.completeAuction(winnerIdx, position, bid);
     };
-    document.getElementById('btnCancelAuction').onclick = () => closeModal('modalAuction');
+    document.getElementById('btnCancelAuction').onclick = () => {
+      closeModal('modalAuction');
+      if (typeof Game !== 'undefined') Game.declinePurchase();
+    };
 
     openModal('modalAuction');
   }
@@ -419,35 +460,247 @@ const UI = (() => {
     openModal('modalCard');
   }
 
-  // ── Loan modal ────────────────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════════
+  //  Reserve Bank of India (RBI) modal — Banking · Ledger · About
+  // ══════════════════════════════════════════════════════════════════════════
 
-  function showLoanDialog() {
-    const modal = document.getElementById('modalLoan');
+  let _rbiTab        = 'banking';            // 'banking' | 'ledger' | 'about'
+  let _ledgerFilter  = 'all';                // 'all' | 'mine' | 'rbi'
+
+  const CLOSE_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><line x1="7.5" y1="7.5" x2="16.5" y2="16.5"/><line x1="16.5" y1="7.5" x2="7.5" y2="16.5"/></svg>';
+
+  function showRBI() {
+    const modal = document.getElementById('modalRBI');
     if (!modal || typeof GameState === 'undefined') return;
-    const cp    = GameState.currentPlayer;
-    const loans = (cp.loans || []).reduce((s, l) => s + l.principal + l.interest, 0);
-
-    document.getElementById('loanPlayerName').textContent  = cp.name;
-    document.getElementById('loanCurrentDebt').textContent = `₹${fmt(loans)}L`;
-    document.getElementById('loanAmount').value            = '';
-    document.getElementById('repayAmount').value           = '';
-
-    document.getElementById('btnTakeLoan').onclick = () => {
-      const amt = parseFloat(document.getElementById('loanAmount').value);
-      if (isNaN(amt) || amt <= 0) { toast('Enter a valid amount.', 'error'); return; }
-      closeModal('modalLoan');
-      if (typeof Game !== 'undefined') Game.takeLoan(amt);
-    };
-    document.getElementById('btnRepayLoan').onclick = () => {
-      const amt = parseFloat(document.getElementById('repayAmount').value);
-      if (isNaN(amt) || amt <= 0) { toast('Enter a valid amount.', 'error'); return; }
-      closeModal('modalLoan');
-      if (typeof Game !== 'undefined') Game.repayLoan(amt);
-    };
-    document.getElementById('btnCloseLoan').onclick = () => closeModal('modalLoan');
-
-    openModal('modalLoan');
+    _rbiTab = 'banking';
+    renderRBI();
+    openModal('modalRBI');
   }
+
+  function renderRBI() {
+    const body = document.getElementById('modalRBIBody');
+    if (!body || typeof GameState === 'undefined') return;
+
+    const cp    = GameState.currentPlayer;
+    const debt  = (cp.loans || []).reduce((s, l) => s + l.principal + l.interest, 0);
+    const repo  = GameState.repoRate;
+    const below = GameState.belowCRR(cp);
+    const floor = GAME_CONFIG.CRR_MINIMUM;
+
+    body.innerHTML = `
+      <button class="modal-close" id="btnRBIClose" aria-label="Close" title="Close">${CLOSE_SVG}</button>
+      <div class="rbi-head">
+        <span class="rbi-seal" aria-hidden="true">₹</span>
+        <div class="rbi-head-text">
+          <h2 class="rbi-title">Reserve Bank of India</h2>
+          <div class="rbi-sub">Mint Road, Fort · Central Monetary Authority</div>
+        </div>
+      </div>
+
+      <div class="rbi-meters">
+        <div class="rbi-meter">
+          <span class="rbi-meter-label">Repo Rate</span>
+          <strong class="rbi-meter-val">${repo}%</strong>
+        </div>
+        <div class="rbi-meter ${below ? 'crr-bad' : 'crr-ok'}">
+          <span class="rbi-meter-label">${cp.name}'s Cash</span>
+          <strong class="rbi-meter-val">₹${fmt(cp.cash)}L</strong>
+        </div>
+        <div class="rbi-meter">
+          <span class="rbi-meter-label">Outstanding</span>
+          <strong class="rbi-meter-val">₹${fmt(debt)}L</strong>
+        </div>
+      </div>
+
+      <div class="rbi-tabs" role="tablist">
+        <button class="rbi-tab ${_rbiTab==='banking'?'active':''}" data-tab="banking">Banking</button>
+        <button class="rbi-tab ${_rbiTab==='ledger' ?'active':''}" data-tab="ledger">Ledger</button>
+        <button class="rbi-tab ${_rbiTab==='about'  ?'active':''}" data-tab="about">About</button>
+      </div>
+
+      <div class="rbi-panel">${
+        _rbiTab === 'banking' ? rbiBankingPanel(cp, debt, repo, below, floor)
+      : _rbiTab === 'ledger'  ? rbiLedgerPanel()
+      :                         rbiAboutPanel()
+      }</div>
+    `;
+
+    // ── Wire close + tabs ────────────────────────────────────────────────────
+    body.querySelector('#btnRBIClose').onclick = () => closeModal('modalRBI');
+    body.querySelectorAll('.rbi-tab').forEach(btn => {
+      btn.onclick = () => { _rbiTab = btn.dataset.tab; renderRBI(); };
+    });
+
+    // ── Tab-specific wiring ──────────────────────────────────────────────────
+    if (_rbiTab === 'banking') {
+      const takeBtn  = body.querySelector('#btnRBITakeLoan');
+      const repayBtn = body.querySelector('#btnRBIRepay');
+      if (takeBtn) takeBtn.onclick = () => {
+        const amt = parseFloat(body.querySelector('#rbiLoanAmount').value);
+        if (isNaN(amt) || amt <= 0) { toast('Enter a valid loan amount.', 'error'); if (typeof AUDIO!=='undefined') AUDIO.errorFeedback(); return; }
+        if (typeof Game !== 'undefined') Game.takeLoan(amt);
+        renderRBI();
+      };
+      if (repayBtn) repayBtn.onclick = () => {
+        const amt = parseFloat(body.querySelector('#rbiRepayAmount').value);
+        if (isNaN(amt) || amt <= 0) { toast('Enter a valid repayment.', 'error'); if (typeof AUDIO!=='undefined') AUDIO.errorFeedback(); return; }
+        if (typeof Game !== 'undefined') Game.repayLoan(amt);
+        renderRBI();
+      };
+    } else if (_rbiTab === 'ledger') {
+      body.querySelectorAll('.ledger-pill').forEach(pill => {
+        pill.onclick = () => { _ledgerFilter = pill.dataset.filter; renderRBI(); };
+      });
+    }
+
+    // ── Tactile feedback (ATM membrane click + sharp haptic) on every button ──
+    if (typeof AUDIO !== 'undefined') {
+      body.querySelectorAll('button').forEach(b => AUDIO.tactile(b));
+    }
+  }
+
+  function rbiBankingPanel(cp, debt, repo, below, floor) {
+    const loanRows = (cp.loans || []).length
+      ? (cp.loans || []).map(l =>
+          `<div class="stat-row"><span>Loan @ ${l.rate != null ? l.rate : '—'}%</span><span>₹${fmt(l.principal + l.interest)}L</span></div>`
+        ).join('')
+      : `<div class="stat-row"><span>No active loans</span><span>—</span></div>`;
+
+    return `
+      ${below ? `<div class="crr-banner">
+          <strong>RBI Advisory — CRR breach.</strong> Your liquid cash is below the
+          ₹${floor}L reserve floor. Mortgage a property now rather than risk a forced sale.
+        </div>` : ''}
+
+      <p class="rbi-note">Loans are issued at the current <strong>Repo Rate of ${repo}%</strong>,
+        locked for the life of the loan. Interest accrues each time you pass GO.
+        Max ${GAME_CONFIG.MAX_LOANS} loans of ₹${GAME_CONFIG.MAX_LOAN_AMOUNT}L each.</p>
+
+      <div class="modal-stats">${loanRows}</div>
+
+      <div class="rbi-action">
+        <label>Sanction a Loan</label>
+        <div class="rbi-input-row">
+          <input id="rbiLoanAmount" type="number" min="1" max="${GAME_CONFIG.MAX_LOAN_AMOUNT}" step="1" placeholder="Amount (₹L, max ${GAME_CONFIG.MAX_LOAN_AMOUNT})" />
+          <button id="btnRBITakeLoan" class="btn btn-primary rbi-btn">Borrow</button>
+        </div>
+      </div>
+
+      <div class="rbi-action">
+        <label>Repay a Loan</label>
+        <div class="rbi-input-row">
+          <input id="rbiRepayAmount" type="number" min="1" step="1" placeholder="Amount (₹L)" />
+          <button id="btnRBIRepay" class="btn btn-secondary rbi-btn">Repay</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function rbiLedgerPanel() {
+    return `
+      <div class="ledger-filters">
+        <button class="ledger-pill ${_ledgerFilter==='all' ?'active':''}" data-filter="all">All Transactions</button>
+        <button class="ledger-pill ${_ledgerFilter==='mine'?'active':''}" data-filter="mine">My Transactions</button>
+        <button class="ledger-pill ${_ledgerFilter==='rbi' ?'active':''}" data-filter="rbi">RBI Updates</button>
+      </div>
+      <div class="ledger-list" id="rbiLedgerList">${buildLedgerRows()}</div>
+    `;
+  }
+
+  function buildLedgerRows() {
+    const cpId = GameState.currentPlayer ? GameState.currentPlayer.id : -1;
+    let rows = GameState.ledger.slice().reverse();   // newest first
+
+    if (_ledgerFilter === 'mine') {
+      rows = rows.filter(e => e.parties.some(p => p.id === cpId));
+    } else if (_ledgerFilter === 'rbi') {
+      rows = rows.filter(e => e.category === 'rbi' || e.category === 'system');
+    }
+
+    if (rows.length === 0) {
+      return `<div class="ledger-empty">No transactions to show yet.</div>`;
+    }
+
+    return rows.map(e => {
+      let cls = e.tone, sign = '', amt = e.amount;
+      if (_ledgerFilter === 'mine') {
+        const mine = e.parties.find(p => p.id === cpId);
+        if (mine) {
+          cls  = mine.delta >= 0 ? 'credit' : 'debit';
+          sign = mine.delta >= 0 ? '+' : '−';
+          amt  = Math.abs(mine.delta);
+        }
+      } else {
+        sign = e.tone === 'credit' ? '+' : e.tone === 'debit' ? '−' : '';
+      }
+      const amtStr = (e.amount > 0)
+        ? `<span class="ledger-amt ${cls}">${sign}₹${fmt(amt)}L</span>`
+        : `<span class="ledger-amt neutral">—</span>`;
+      return `
+        <div class="ledger-row ${cls}">
+          <div class="ledger-main">
+            <span class="ledger-desc">${e.desc}</span>
+            <span class="ledger-meta">Turn ${e.turn} · ${e.time}</span>
+          </div>
+          ${amtStr}
+        </div>`;
+    }).join('');
+  }
+
+  function rbiAboutPanel() {
+    return `
+      <div class="rbi-card">
+        <div class="rbi-card-row"><span>Role</span><p>The central monetary authority regulating the South Mumbai real-estate market.</p></div>
+        <div class="rbi-card-row"><span>Funds</span><p>Infinite net worth — the RBI issues currency and never runs dry.</p></div>
+        <div class="rbi-card-row"><span>Functions</span><p>Issues currency, manages property title deeds, handles mortgages, and sanctions business loans.</p></div>
+      </div>
+      <div class="rbi-explain">
+        <div class="rbi-explain-item">
+          <strong>Repo Rate</strong>
+          <p>The interest rate on RBI loans. It is reviewed every ${GAME_CONFIG.REPO_RATE_INTERVAL} rounds and swings between ${GAME_CONFIG.REPO_RATE_MIN}%–${GAME_CONFIG.REPO_RATE_MAX}%. Borrow when it's low.</p>
+        </div>
+        <div class="rbi-explain-item">
+          <strong>CRR · Cash Reserve Ratio</strong>
+          <p>Keep at least ₹${GAME_CONFIG.CRR_MINIMUM}L in liquid cash. Drop below it and the RBI warns you to mortgage early — before bankruptcy forces your hand.</p>
+        </div>
+        <div class="rbi-explain-item">
+          <strong>Digital Ledger</strong>
+          <p>A timestamped record of every purchase, rent transfer, loan, and policy change — full transparency over the game's economy.</p>
+        </div>
+      </div>
+    `;
+  }
+
+  /** Called by GameState.recordTxn — live-refresh the ledger if it's on screen. */
+  function onLedgerUpdate() {
+    const modal = document.getElementById('modalRBI');
+    if (modal && modal.classList.contains('show') && _rbiTab === 'ledger') {
+      const list = document.getElementById('rbiLedgerList');
+      if (list) list.innerHTML = buildLedgerRows();
+    }
+  }
+
+  /** Update the right-sidebar repo-rate chip. */
+  function refreshRepoChip() {
+    const el = document.getElementById('repoChip');
+    if (!el || typeof GameState === 'undefined') return;
+    el.innerHTML = `<span class="repo-dot"></span>RBI Repo Rate&nbsp;<strong>${GameState.repoRate}%</strong>`;
+  }
+
+  /** One-shot CRR advisory when a player crosses below the reserve floor. */
+  function checkCRR(player) {
+    if (!player || typeof GameState === 'undefined') return;
+    const below = GameState.belowCRR(player);
+    if (below && !player.crrWarned) {
+      player.crrWarned = true;
+      toast(`RBI Advisory: ${player.name} is below the ₹${GAME_CONFIG.CRR_MINIMUM}L reserve floor — mortgage early to stay liquid.`, 'error');
+    } else if (!below && player.crrWarned) {
+      player.crrWarned = false;
+    }
+  }
+
+  /** Backward-compatible alias — the old loan dialog now opens the RBI modal. */
+  function showLoanDialog() { showRBI(); }
 
   // ── Player detail modal ───────────────────────────────────────────────────
 
@@ -462,7 +715,7 @@ const UI = (() => {
 
     let html = `
       <div class="player-detail-header" style="border-color:${color}">
-        <span style="color:${color};font-size:2rem">${GAME_CONFIG.PLAYER_TOKENS[idx]}</span>
+        ${GAME_CONFIG.monumentBadge(idx, 'lg')}
         <h2>${player.name}</h2>
       </div>
       <div class="modal-stats">
@@ -480,10 +733,10 @@ const UI = (() => {
         const cfg = GAME_CONFIG.getSpace(pos);
         const ps  = GameState.propertyState[pos];
         const colorHex = cfg.color ? GAME_CONFIG.COLOR_GROUPS[cfg.color]?.hex : '#555';
-        const bText = ps.buildings === 0 ? '' : ps.buildings === 5 ? ' 🏢' : ` ${'🏠'.repeat(ps.buildings)}`;
+        const bIcons = bldMini(ps.buildings);
         html += `
           <div class="prop-item" style="border-left-color:${colorHex}" onclick="UI.showSpaceDetail(${pos})">
-            <span>${cfg.name}${bText}</span>
+            <span>${cfg.name} ${bIcons}</span>
             <span>${ps.mortgaged ? '<em>Mortgaged</em>' : `₹${cfg.price}L`}</span>
           </div>`;
       });
@@ -503,9 +756,8 @@ const UI = (() => {
   function showGameOver(winner) {
     const modal = document.getElementById('modalGameOver');
     if (!modal) return;
-    document.getElementById('winnerName').textContent  = winner.name;
-    document.getElementById('winnerToken').textContent = GAME_CONFIG.PLAYER_TOKENS[winner.id];
-    document.getElementById('winnerToken').style.color = GAME_CONFIG.PLAYER_COLORS[winner.id];
+    document.getElementById('winnerName').textContent = winner.name;
+    document.getElementById('winnerToken').innerHTML  = GAME_CONFIG.monumentBadge(winner.id, 'lg');
     openModal('modalGameOver');
   }
 
@@ -545,4 +797,64 @@ const UI = (() => {
     return rounded.toLocaleString('en-IN');
   }
 
-  // ── Public API ───────────────────────────────────�
+  // Inline development label using the custom House / Hotel SVG emblems.
+  function bldLabel(buildings) {
+    if (!buildings) return '—';
+    if (buildings >= 5) return `<span class="bld-inline hq">${GAME_CONFIG.HQ_ICON}</span> Headquarters`;
+    let icons = '';
+    for (let i = 0; i < buildings; i++) {
+      icons += `<span class="bld-inline office">${GAME_CONFIG.OFFICE_ICON}</span>`;
+    }
+    return `${icons} ${buildings} office${buildings > 1 ? 's' : ''}`;
+  }
+
+  // Compact development emblems for tight list rows.
+  function bldMini(buildings) {
+    if (!buildings) return '';
+    if (buildings >= 5) return `<span class="bld-inline sm hq">${GAME_CONFIG.HQ_ICON}</span>`;
+    let icons = '';
+    for (let i = 0; i < buildings; i++) {
+      icons += `<span class="bld-inline sm office">${GAME_CONFIG.OFFICE_ICON}</span>`;
+    }
+    return icons;
+  }
+
+  // ── Public API ────────────────────────────────────────────────────────────
+
+  return {
+    toast,
+    appendLog,
+    animateDice,
+    renderDieFace,
+    initDice() {
+      const d1 = document.getElementById('die1');
+      const d2 = document.getElementById('die2');
+      if (d1) renderDieFace(d1, 1);
+      if (d2) renderDieFace(d2, 1);
+    },
+    showSpaceDetail,
+    showBuyDecision,
+    showAuction,
+    showCard,
+    showLoanDialog,
+    showRBI,
+    onLedgerUpdate,
+    refreshRepoChip,
+    checkCRR,
+    showPlayerDetail,
+    showGameOver,
+    showShortfallPanel,
+    hideShortfallPanel,
+    openModal,
+    closeModal,
+    fmt,
+
+    /** Full UI refresh — call after every game state change. */
+    refresh() {
+      refreshPlayerPanels();
+      refreshActionBar();
+      refreshRepoChip();
+      if (typeof GameState !== 'undefined') checkCRR(GameState.currentPlayer);
+    },
+  };
+})();
