@@ -154,7 +154,10 @@ const Game = (() => {
   // ═══════════════════════════════════════════════════════════════════════════
 
   const AUTO_ADVANCE_MS = 1500;   // UX pause before passing to the next player
+  const CARD_READ_MS    = 4000;   // longer pause so a drawn card can be read first
   const HOP_MS          = 130;    // per-tile token hop duration
+
+  let _pendingCardRead = false;   // a Chance/Chest card was just shown — hold longer
 
   let _automating   = false;      // an automated sequence is currently running
   let _advanceTimer = null;       // the pending auto-advance (pass-turn) timer
@@ -388,11 +391,14 @@ const Game = (() => {
   async function autoAdvance() {
     clearAdvanceTimer();
     setAutomating(true);
-    setStatus('Passing to next player…');
+    // Give players time to read a freshly drawn card before the modal is dismissed.
+    const delay = _pendingCardRead ? CARD_READ_MS : AUTO_ADVANCE_MS;
+    _pendingCardRead = false;
+    setStatus(delay === CARD_READ_MS ? 'Read your card…' : 'Passing to next player…');
     UI.refresh();
 
     await new Promise(resolve => {
-      _advanceTimer = setTimeout(() => { _advanceTimer = null; resolve(); }, AUTO_ADVANCE_MS);
+      _advanceTimer = setTimeout(() => { _advanceTimer = null; resolve(); }, delay);
     });
 
     UI.closeModal('modalCard');     // dismiss any lingering info modal
@@ -445,6 +451,7 @@ const Game = (() => {
           executeSpaceAction(player);   // card moved the player — re-evaluate
           return;
         }
+        _pendingCardRead = true;        // hold longer so the card can be read
         afterSpaceAction(player);
         break;
 
@@ -455,6 +462,7 @@ const Game = (() => {
           executeSpaceAction(player);
           return;
         }
+        _pendingCardRead = true;        // hold longer so the card can be read
         afterSpaceAction(player);
         break;
 
