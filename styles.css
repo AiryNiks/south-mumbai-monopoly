@@ -276,8 +276,8 @@ h1, h2, h3, h4,
 
 /* Sidebars — floating bento cards */
 .sidebar {
-  width: 232px;
-  min-width: 208px;
+  width: 214px;
+  min-width: 196px;
   flex-shrink: 0;
   background: var(--surface);
   border: 3px double var(--accent-gold);
@@ -326,7 +326,7 @@ h1, h2, h3, h4,
   grid-template-rows:    1.55fr repeat(9, 1fr) 1.55fr;
   /* As large as the viewport allows: bounded by the column width, the
      viewport height (minus page chrome), and a sane ceiling. */
-  width:  min(100%, calc(100vh - 2.4rem), 1040px);
+  width:  min(100%, calc(100vh - 1.6rem), 1120px);
   aspect-ratio: 1 / 1;
   height: auto;
   border: 4px double var(--accent-gold);
@@ -468,11 +468,12 @@ h1, h2, h3, h4,
 .edge-corner .space-icon { transform: none; writing-mode: horizontal-tb; }
 
 .space-name {
-  font-size: 0.62rem;                            /* fallback if cqmin unsupported */
-  font-size: clamp(0.45rem, 24cqmin, 0.85rem);  /* scales with the tile */
+  font-size: 0.72rem;                            /* fallback if cqmin unsupported */
+  font-size: clamp(0.52rem, 29cqmin, 1.02rem);  /* scales with the tile */
   text-align: center;
   color: var(--text-charcoal);
-  line-height: 1.08;
+  line-height: 1.06;
+  font-weight: 600;                               /* Oswald 600 — heavier reads clearer at small sizes */
   max-width: 100%;
   white-space: normal;                            /* names may wrap to 2 tidy lines */
   overflow-wrap: normal;
@@ -480,9 +481,9 @@ h1, h2, h3, h4,
 
 /* Longer names step down so the longest single word still fits the tile.
    Tiers are set by board.js from the label's longest word. */
-.space-name.nm-md { font-size: clamp(0.42rem, 19.5cqmin, 0.78rem); }
-.space-name.nm-lg { font-size: clamp(0.4rem, 16cqmin, 0.7rem); letter-spacing: 0.01em; }
-.space-name.nm-xl { font-size: clamp(0.38rem, 14cqmin, 0.62rem); letter-spacing: 0; }
+.space-name.nm-md { font-size: clamp(0.48rem, 24cqmin, 0.92rem); }
+.space-name.nm-lg { font-size: clamp(0.45rem, 20cqmin, 0.82rem); letter-spacing: 0.01em; }
+.space-name.nm-xl { font-size: clamp(0.42rem, 17.5cqmin, 0.74rem); letter-spacing: 0; }
 
 .space-price {
   font-size: 0.48rem;                            /* fallback if cqmin unsupported */
@@ -502,10 +503,11 @@ h1, h2, h3, h4,
 
 .edge-corner .space-icon { font-size: clamp(1.2rem, 30cqmin, 2.3rem); }
 .edge-corner .space-name {
-  font-size: 0.72rem;                            /* fallback if cqmin unsupported */
-  font-size: clamp(0.5rem, 13.5cqmin, 0.92rem);
+  font-size: 0.82rem;                            /* fallback if cqmin unsupported */
+  font-size: clamp(0.58rem, 16cqmin, 1.05rem);
+  font-weight: 600;
   white-space: normal;     /* short corner names may wrap to 2 tidy lines */
-  line-height: 1.15;
+  line-height: 1.12;
 }
 
 /* ── Player tokens on board ──────────────────────────────── */
@@ -1708,7 +1710,7 @@ body.automating #board { pointer-events: none; }
 #muteToggle {
   position: fixed;
   top: 0.9rem;
-  right: 6.4rem;                 /* sit to the left of #themeToggle */
+  right: 7.9rem;                 /* clear #themeToggle (~0.9rem + its width) with a comfortable gap */
   z-index: 1000;
   display: inline-flex;
   align-items: center;

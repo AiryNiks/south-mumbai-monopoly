@@ -17,6 +17,21 @@ Repo: https://github.com/AiryNiks/south-mumbai-monopoly (local folder is the sou
 - The bundled Browser pane has `prefers-reduced-motion: reduce` and throttled rAF — dice take the reduced path there; test animations in a real browser.
 - Full-turn pipeline (roll → move → buy/rent/tax → auto-advance) tested on desktop 1363×600/1280×720 and mobile 375×812 on 2026-07-11.
 
+## Checkpoint 2026-07-11 (session 2 — verification + two fixes)
+Verified the whole build in a live preview via DOM/computed-style measurement (the bundled
+Browser pane can't reliably screenshot — `zoom` worked twice then began timing out; not a code bug).
+Two real defects found and fixed:
+- **Board legibility (task 1):** tile-name `cqmin` coefficients raised (`.space-name` 24→29cqmin,
+  nm-md 19.5→24, nm-lg 16→20, nm-xl 14→17.5, corner 13.5→16), names set `font-weight:600`,
+  sidebars trimmed 232→214px, board height budget `100vh-2.4rem`→`100vh-1.6rem`, ceiling 1040→1120.
+  Result on 1366×768: board 686→746px, name font avg ~10→13px (max 14.7), **zero >4px overflow**.
+- **Setup-screen toggle overlap (task 2):** `#muteToggle` was `right:6.4rem`, leaving only a 1px gap
+  to `#themeToggle` → they touched. Bumped to `right:7.9rem` → 20px gap, no overlap. (Game screen was
+  already fixed via dockToggles.)
+Verified OK as-is (no change): 3D dice land on correct faces + cleanup runs (task 3, premium already);
+mobile no h-overflow, board fits 353px, zoom chip 353→656px pannable, all features present (task 4);
+favicon.svg is a clean Art-Deco Gateway emblem in the tab (task 5); README already documents everything (task 6).
+
 ## Next candidates (not committed to)
 - Real property photos in `images/` (config already points at paths).
 - Following the token with auto-scroll while the mobile board is zoomed.
