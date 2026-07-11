@@ -452,11 +452,9 @@ h1, h2, h3, h4,
   justify-content: center;
 }
 
-/* Keep icons upright even though the tile label is rotated to face outward —
-   each rule counters its parent .space-content rotation. */
-.edge-top .space-content .space-icon   { transform: rotate(180deg); }
-.edge-left .space-content .space-icon  { transform: rotate(-90deg); }
-.edge-right .space-content .space-icon { transform: rotate(90deg); }
+/* Symbols face outward WITH the tile label: they inherit the .space-content
+   rotation (no counter-transform) so the icon, name and price read as one unit
+   on every side. Corners aren't rotated, so their icon stays upright. */
 .edge-corner .space-icon { transform: none; }
 
 .space-name {
@@ -1526,17 +1524,24 @@ body.automating #board { pointer-events: none; }
     flex-shrink: 0;
   }
 
-  /* 2 · the board — full width; ⤢ toggles a pannable close-up */
+  /* 2 · the board — full width on the phone */
   #boardContainer { order: 2; flex: 0 0 auto; padding: 0; overflow: visible; }
   #boardViewport {
     display: block;
     width: 100%;
-    overflow: auto;
     border-radius: var(--radius-lg);
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
   }
   #board { width: 100%; }
+
+  /* Keep the centre emblem, tagline and card decks comfortably inside the small
+     phone board. Pinning to the top (flex-start) guarantees the seal is never
+     pushed up past the board's top edge and clipped, whatever the content height. */
+  #board-center { justify-content: flex-start; gap: 0.4rem; padding: 0.55rem; margin: 4px; }
+  .center-seal { margin-bottom: 0.28rem; }
+  .center-title::after { margin-top: 0.22rem; }
+  .center-tagline { margin-top: 0.32rem; line-height: 1.38; }
+  .center-decks { gap: 0.7rem; }
+  .deck-pile { width: clamp(44px, 13.5vw, 62px); height: clamp(48px, 14.5vw, 68px); }
 
   /* board pieces read better slightly smaller on phone tiles */
   .player-token { width: 13px; height: 13px; }

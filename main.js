@@ -420,7 +420,11 @@ const Game = (() => {
     UI.hideShortfallPanel();
     GameState.advanceTurn();
     Board.refresh(); UI.refresh();
-    Board.centerAlert(`${GameState.currentPlayer.name}'s turn`);
+    // The current-player strip already names whose turn it is, so this center
+    // flash is redundant clutter on phones — show it on wider screens only.
+    if (!window.matchMedia('(max-width: 760px)').matches) {
+      Board.centerAlert(`${GameState.currentPlayer.name}'s turn`);
+    }
     setAutomating(false);
     setStatus(`${GameState.currentPlayer.name} — roll the dice`);
   }

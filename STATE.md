@@ -62,6 +62,24 @@ favicon.svg is a clean Art-Deco Gateway emblem in the tab (task 5); README alrea
   logo ASCII render. Pending: one full-turn token-move smoke test, blocked by a transient model-
   classifier outage on the browser JS tool at commit time.
 
+## Checkpoint 2026-07-11 (session 4 — mobile polish + symbol orientation)
+Verified the round-2 work is fully live (full-turn smoke test finally ran: 4 tokens render on
+their correct landed tiles; dice-motion fix confirmed last session). Three fixes this round:
+- **Mobile logo clip:** the centre content fit the small phone board with almost no slack, so the
+  centred seal spilled past the board's top edge and clipped. Fixed by pinning the centre column to
+  the top on mobile (`#board-center{justify-content:flex-start}`), compacting gap/padding/deck size,
+  and adding `width/height="64"` to favicon.svg for robust intrinsic sizing. Seal now sits 61px below
+  the board top; decks fit. Desktop centre untouched (still justify-content:center).
+- **Mobile turn pill removed:** the `${name}'s turn` centerAlert flash is redundant with the current-
+  player strip on phones, so main.js now guards it behind `!matchMedia('(max-width:760px)')`. Other
+  centre alerts (landed space name, passed GO, rent) still show. Verified: no turn message on mobile,
+  desktop keeps it.
+- **Symbol orientation:** removed the icon counter-rotation so `.space-icon` now inherits the
+  `.space-content` rotation — symbols face outward WITH the name/price on every side (both versions),
+  matching the card orientation fixed last round. Corners stay upright.
+Verification was DOM/computed-style measurement again (preview-pane screenshots still time out —
+tooling bug, not code); desktop 1366 + mobile 375, no console errors.
+
 ## Next candidates (not committed to)
 - Real property photos in `images/` (config already points at paths).
 - Following the token with auto-scroll while the mobile board is zoomed.
