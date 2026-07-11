@@ -59,21 +59,6 @@ const Game = (() => {
       AUDIO.tactile(document.getElementById('btnJailCard'));
     }
 
-    // Mobile board magnifier — toggles a pannable 175vw close-up, centred.
-    const zoomBtn = document.getElementById('boardZoom');
-    if (zoomBtn) {
-      zoomBtn.addEventListener('click', () => {
-        const bc = document.getElementById('boardContainer');
-        const vp = document.getElementById('boardViewport');
-        const zoomed = bc.classList.toggle('zoomed');
-        if (zoomed && vp) {
-          // Reading scroll metrics forces layout, so this centres synchronously.
-          vp.scrollLeft = (vp.scrollWidth - vp.clientWidth) / 2;
-          vp.scrollTop  = (vp.scrollHeight - vp.clientHeight) / 2;
-        }
-      });
-    }
-
     // Sound mute toggle.
     const muteBtn = document.getElementById('muteToggle');
     if (muteBtn) {

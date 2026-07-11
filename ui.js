@@ -237,15 +237,8 @@ const UI = (() => {
     // Clatter of dice tumbling on a smooth surface.
     if (typeof AUDIO !== 'undefined') AUDIO.play('dice');
 
-    // Reduced motion → skip the tumble, reveal the result promptly.
-    const reduced = window.matchMedia
-      && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reduced) {
-      renderDieFace(die1, d1);
-      renderDieFace(die2, d2);
-      setTimeout(() => callback && callback(), 200);
-      return;
-    }
+    // The dice tumble is core game feedback, so it always plays — even under
+    // prefers-reduced-motion (the CSS carve-out below keeps it enabled too).
 
     // Restart the throw arc, then tumble each cube onto its final face.
     [die1, die2].forEach(el => {

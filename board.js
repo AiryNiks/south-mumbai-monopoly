@@ -137,10 +137,11 @@ const Board = (() => {
       content.appendChild(priceEl);
     }
 
-    // Token container (player tokens go here)
-    content.appendChild(buildTokensContainer());
-
     el.appendChild(content);
+
+    // Token container — a direct child of the SPACE (not the rotated .space-content),
+    // so pieces always sit upright and overlay the tile without nudging the name.
+    el.appendChild(buildTokensContainer());
 
     // Buildings display overlay
     const buildings = document.createElement('div');
@@ -246,6 +247,7 @@ const Board = (() => {
           <img class="center-seal" src="favicon.svg" alt="" />
           <span class="center-title-line1">South Mumbai</span>
           <span class="center-title-line2">Business Game</span>
+          <span class="center-tagline">Where Heritage Meets High-Stakes Real Estate</span>
         </div>
         <div class="center-decks">
           <div class="deck-pile deck-hustle" id="deckHustle" title="Mumbai Hustle">

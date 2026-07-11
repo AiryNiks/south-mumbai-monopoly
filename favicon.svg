@@ -1,22 +1,41 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="South Mumbai Business Game emblem">
-  <!-- Warm charcoal plate -->
-  <rect width="64" height="64" rx="14" fill="#1B1713"/>
-  <!-- Double Deco ring -->
-  <circle cx="32" cy="32" r="26.5" fill="none" stroke="#C9A45C" stroke-width="2"/>
-  <circle cx="32" cy="32" r="23" fill="none" stroke="#E4CE96" stroke-width="0.7" opacity="0.8"/>
-  <!-- Sunburst fan rising inside the gateway -->
-  <g stroke="#E4CE96" stroke-width="1.05" opacity="0.9">
-    <line x1="32" y1="41.5" x2="32"   y2="24.2"/>
-    <line x1="32" y1="41.5" x2="26.6" y2="25.9"/>
-    <line x1="32" y1="41.5" x2="37.4" y2="25.9"/>
-    <line x1="32" y1="41.5" x2="24.9" y2="31"/>
-    <line x1="32" y1="41.5" x2="39.1" y2="31"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="South Mumbai Business Game — Gateway of India emblem">
+  <!-- Warm cream tile -->
+  <rect width="64" height="64" rx="14" fill="#F4EEDB"/>
+  <!-- Gold rounded border -->
+  <rect x="3.4" y="3.4" width="57.2" height="57.2" rx="11" fill="none" stroke="#B68A3E" stroke-width="1.5"/>
+
+  <g fill="#B68A3E">
+    <!-- Left minaret + dome cap + finial -->
+    <rect x="14" y="24" width="3.6" height="23"/>
+    <path d="M13.4 24 Q13.4 18.8 15.8 18.8 Q18.2 18.8 18.2 24 Z"/>
+    <rect x="15.15" y="15.4" width="1.3" height="3.6" rx="0.5"/>
+    <circle cx="15.8" cy="14.9" r="1.05"/>
+
+    <!-- Right minaret + dome cap + finial -->
+    <rect x="46.4" y="24" width="3.6" height="23"/>
+    <path d="M45.8 24 Q45.8 18.8 48.2 18.8 Q50.6 18.8 50.6 24 Z"/>
+    <rect x="47.55" y="15.4" width="1.3" height="3.6" rx="0.5"/>
+    <circle cx="48.2" cy="14.9" r="1.05"/>
+
+    <!-- Central dome + finial -->
+    <path d="M25.3 28 Q25.3 17.6 32 17.6 Q38.7 17.6 38.7 28 Z"/>
+    <rect x="31.2" y="12.4" width="1.6" height="5.4" rx="0.6"/>
+    <circle cx="32" cy="11.7" r="1.35"/>
+
+    <!-- Gateway facade (rounded-top block) -->
+    <path d="M17.5 47 V30.5 Q17.5 28 20 28 H44 Q46.5 28 46.5 30.5 V47 Z"/>
   </g>
-  <!-- Gateway arch band -->
-  <path fill="#C9A45C" fill-rule="evenodd" d="M20.5 43.5 V29.5 A11.5 11.5 0 0 1 43.5 29.5 V43.5 H39.7 V30.1 A7.7 7.7 0 0 0 24.3 30.1 V43.5 Z"/>
-  <!-- Keystone -->
-  <path fill="#C9A45C" d="M32 13.9 L34.6 16.8 L32 19.7 L29.4 16.8 Z"/>
+
+  <!-- Arch openings, cut in the cream tile colour -->
+  <g fill="#F4EEDB">
+    <path d="M27.4 47 V35 Q27.4 30.8 32 30.8 Q36.6 30.8 36.6 35 V47 Z"/>
+    <path d="M20.3 47 V40 Q20.3 37.7 22.55 37.7 Q24.8 37.7 24.8 40 V47 Z"/>
+    <path d="M39.2 47 V40 Q39.2 37.7 41.45 37.7 Q43.7 37.7 43.7 40 V47 Z"/>
+  </g>
+
   <!-- Stepped plinth -->
-  <rect x="17.5" y="43.5" width="29" height="2.6" fill="#C9A45C"/>
-  <rect x="20.5" y="47.1" width="23" height="2.2" fill="#C9A45C" opacity="0.75"/>
+  <g fill="#B68A3E">
+    <rect x="14.5" y="47" width="35" height="3" rx="0.6"/>
+    <rect x="11.5" y="50.4" width="41" height="3.2" rx="0.7"/>
+  </g>
 </svg>

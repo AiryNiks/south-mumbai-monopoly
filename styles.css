@@ -316,9 +316,6 @@ h1, h2, h3, h4,
    the flex centre. On mobile it becomes a pannable scroll window. */
 #boardViewport { display: contents; }
 
-/* Mobile-only board magnifier chip */
-#boardZoom { display: none; }
-
 /* ── The board — rounded bento, ivory, open center ───────── */
 #board {
   display: grid;
@@ -385,21 +382,24 @@ h1, h2, h3, h4,
   flex-shrink: 0;
 }
 
-/* Edge orientations — content rotation */
-.edge-bottom .space-content { /* normal reading direction — no transform */ }
+/* Edge orientations — every side reads from OUTSIDE the board (letter-tops
+   toward the centre) so all four sides match and multi-word names keep their
+   natural order. Left/right rotate horizontal text 90° and swap their box via
+   cqh/cqw (each tile is a size container) so the rotated text fills the tile. */
+.edge-bottom .space-content { /* upright — no transform */ }
 
-.edge-left .space-content {
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
-}
+.edge-top .space-content { transform: rotate(180deg); }
 
-.edge-top .space-content {
-  transform: rotate(180deg);
-}
-
+.edge-left .space-content,
 .edge-right .space-content {
-  writing-mode: vertical-lr;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100cqh;     /* becomes the tile's short axis after the 90° turn */
+  height: 100cqw;
 }
+.edge-left  .space-content { transform: translate(-50%, -50%) rotate(90deg); }
+.edge-right .space-content { transform: translate(-50%, -50%) rotate(-90deg); }
 
 .edge-left .color-strip {
   position: absolute;
@@ -452,20 +452,12 @@ h1, h2, h3, h4,
   justify-content: center;
 }
 
-/* Keep icons upright + centred even though edge labels are rotated.
-   Each rule counters its parent .space-content transform / writing-mode. */
-.edge-top .space-content .space-icon {
-  writing-mode: horizontal-tb;
-  transform: rotate(180deg);
-}
-.edge-left .space-content .space-icon {
-  writing-mode: horizontal-tb;
-  transform: rotate(180deg);
-}
-.edge-right .space-content .space-icon {
-  writing-mode: horizontal-tb;
-}
-.edge-corner .space-icon { transform: none; writing-mode: horizontal-tb; }
+/* Keep icons upright even though the tile label is rotated to face outward —
+   each rule counters its parent .space-content rotation. */
+.edge-top .space-content .space-icon   { transform: rotate(180deg); }
+.edge-left .space-content .space-icon  { transform: rotate(-90deg); }
+.edge-right .space-content .space-icon { transform: rotate(90deg); }
+.edge-corner .space-icon { transform: none; }
 
 .space-name {
   font-size: 0.72rem;                            /* fallback if cqmin unsupported */
@@ -473,7 +465,8 @@ h1, h2, h3, h4,
   text-align: center;
   color: var(--text-charcoal);
   line-height: 1.06;
-  font-weight: 600;                               /* Oswald 600 — heavier reads clearer at small sizes */
+  /* weight inherits 500 from the base .space-name rule — the lighter Deco cap
+     reads more refined on the larger desktop tiles; mobile bumps it to 600. */
   max-width: 100%;
   white-space: normal;                            /* names may wrap to 2 tidy lines */
   overflow-wrap: normal;
@@ -511,13 +504,24 @@ h1, h2, h3, h4,
 }
 
 /* ── Player tokens on board ──────────────────────────────── */
+/* An upright overlay anchored to the tile's OUTER rim (a direct child of the
+   space, so it ignores the label rotation). Pieces rest like a real board and
+   never shift the centred name when they land. */
 .tokens-container {
+  position: absolute;
   display: flex;
   flex-wrap: wrap;
   gap: 1px;
+  align-items: center;
   justify-content: center;
-  margin-top: 1px;
+  z-index: 5;
+  pointer-events: none;   /* taps fall through to the tile */
 }
+.edge-bottom .tokens-container { left: 1px; right: 1px; bottom: 1px; }
+.edge-top    .tokens-container { left: 1px; right: 1px; top: 1px; }
+.edge-left   .tokens-container { top: 1px; bottom: 1px; left: 1px; flex-direction: column; }
+.edge-right  .tokens-container { top: 1px; bottom: 1px; right: 1px; flex-direction: column; }
+.edge-corner .tokens-container { left: 2px; right: 2px; bottom: 3px; }
 
 .player-token {
   width: 15px;
@@ -610,6 +614,21 @@ h1, h2, h3, h4,
   font-size: clamp(1.3rem, 3.4vmin, 2.4rem);
   color: var(--accent-gold);
   letter-spacing: 0.06em;
+}
+
+/* Gold Deco tagline — same display face as "Business Game", sized to sit on
+   one or two tidy centred lines without crowding the card decks below. */
+.center-tagline {
+  font-family: var(--font-display);
+  color: var(--accent-gold);
+  font-size: clamp(0.66rem, 1.8vmin, 1.12rem);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  text-align: center;
+  max-width: 88%;
+  line-height: 1.5;
+  margin: 0.55rem auto 0;
+  opacity: 0.92;
 }
 
 /* thin deco divider under the title */
@@ -1518,33 +1537,12 @@ body.automating #board { pointer-events: none; }
     overscroll-behavior: contain;
   }
   #board { width: 100%; }
-  #boardContainer.zoomed #boardViewport { height: min(118vw, 68dvh); }
-  #boardContainer.zoomed #board { width: 175vw; max-width: none; }
-
-  #boardZoom {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    position: absolute;
-    right: 0.6rem;
-    bottom: 0.6rem;
-    z-index: 20;
-    width: 2.6rem;
-    height: 2.6rem;
-    border-radius: 50%;
-    border: 1px solid var(--accent-gold);
-    background: var(--surface);
-    color: var(--accent-gold);
-    font-size: 1.15rem;
-    box-shadow: var(--shadow);
-    cursor: pointer;
-    transition: transform 0.12s var(--ease-snappy), background var(--transition), color var(--transition);
-  }
-  #boardZoom:active { transform: scale(0.94); }
-  #boardContainer.zoomed #boardZoom { background: var(--accent-gold); color: #fff; }
 
   /* board pieces read better slightly smaller on phone tiles */
   .player-token { width: 13px; height: 13px; }
+
+  /* heavier Deco caps hold up better at the tiny phone-tile size */
+  .space-name { font-weight: 600; }
 
   /* phase text is redundant with the turn status pill on mobile */
   #phaseLabel { display: none; }
@@ -1924,12 +1922,12 @@ body.automating #board { pointer-events: none; }
 
 /* ── 12 · Respect reduced-motion preferences ────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
-  .die.throwing, .die.throwing::after,
+  /* The dice roll is deliberately EXEMPT — a tumbling die is essential game
+     feedback, so it animates on every device regardless of this preference. */
   .player-token.active-token,
   .player-token.just-landed,
   .traveling-token,
   .modal-box, .modal-backdrop.show,
   .deck-pile { animation: none !important; transition: none !important; }
-  .die-cube { transition: none !important; }
   .btn { transition: background-color var(--transition), color var(--transition); }
 }
