@@ -42,6 +42,7 @@
 
   --font-display: 'Poiret One', 'Century Gothic', sans-serif;
   --font-body:    'Montserrat', 'Segoe UI', system-ui, sans-serif;
+  --font-tile:    'Oswald', 'Arial Narrow', var(--font-body);   /* condensed Deco caps for board tiles */
 }
 
 /* ── Reset & base ────────────────────────────────────────── */
@@ -88,21 +89,23 @@ h1, h2, h3, h4,
   font-weight: 700;
 }
 
-/* Board labels — readable sans, NO text-stroke (stroke merges small letters),
-   ligatures off so every character stays distinct. */
+/* Board labels — condensed Deco caps (Oswald), NO text-stroke (stroke merges
+   small letters), ligatures off so every character stays distinct. */
 .space-name {
-  font-family: var(--font-body);
-  font-weight: 700;
+  font-family: var(--font-tile);
+  font-weight: 500;
   -webkit-text-stroke: 0;
   font-variant-ligatures: none;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 .edge-corner .space-name {
-  font-family: var(--font-body);
-  font-weight: 700;
+  font-family: var(--font-tile);
+  font-weight: 600;
   -webkit-text-stroke: 0;
   font-variant-ligatures: none;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 /* ── Scrollbars ──────────────────────────────────────────── */
@@ -147,6 +150,14 @@ h1, h2, h3, h4,
 .setup-logo {
   text-align: center;
   margin-bottom: 2rem;
+}
+
+.setup-seal {
+  width: 72px;
+  height: 72px;
+  border-radius: 18px;
+  margin-bottom: 1rem;
+  box-shadow: 0 6px 18px rgba(27,23,19,0.25);
 }
 
 .setup-logo h1 {
@@ -295,17 +306,29 @@ h1, h2, h3, h4,
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0.5rem;
+  padding: 0.3rem;
   overflow: hidden;
+  position: relative;
+  min-width: 0;
 }
+
+/* Desktop: the viewport wrapper is transparent — the board sits directly in
+   the flex centre. On mobile it becomes a pannable scroll window. */
+#boardViewport { display: contents; }
+
+/* Mobile-only board magnifier chip */
+#boardZoom { display: none; }
 
 /* ── The board — rounded bento, ivory, open center ───────── */
 #board {
   display: grid;
-  grid-template-columns: 2fr repeat(9, 1fr) 2fr;
-  grid-template-rows:    2fr repeat(9, 1fr) 2fr;
-  width:  min(90vmin, 720px);
-  height: min(90vmin, 720px);
+  grid-template-columns: 1.55fr repeat(9, 1fr) 1.55fr;
+  grid-template-rows:    1.55fr repeat(9, 1fr) 1.55fr;
+  /* As large as the viewport allows: bounded by the column width, the
+     viewport height (minus page chrome), and a sane ceiling. */
+  width:  min(100%, calc(100vh - 2.4rem), 1040px);
+  aspect-ratio: 1 / 1;
+  height: auto;
   border: 4px double var(--accent-gold);
   border-radius: var(--radius-lg);
   overflow: hidden;
@@ -323,6 +346,7 @@ h1, h2, h3, h4,
   cursor: pointer;
   transition: background var(--transition);
   container-type: size;   /* lets tile text scale to the tile (cqmin units) */
+  --strip: clamp(5px, 14cqmin, 11px);       /* colour-strip thickness, tile-scaled */
 }
 
 .board-space:hover { background: rgba(107,142,115,0.1); }   /* subtle emerald hover */
@@ -348,15 +372,15 @@ h1, h2, h3, h4,
   justify-content: center;
   background: rgba(248,247,242,0.78);
   color: var(--red);
-  font-size: 0.45rem;
+  font-size: clamp(0.38rem, 12cqmin, 0.6rem);
   font-weight: 600;
   letter-spacing: 0.08em;
   z-index: 4;
 }
 
-/* Color strip */
+/* Color strip — scales with the tile */
 .color-strip {
-  height: 8px;
+  height: var(--strip, 8px);
   width: 100%;
   flex-shrink: 0;
 }
@@ -380,7 +404,7 @@ h1, h2, h3, h4,
 .edge-left .color-strip {
   position: absolute;
   right: 0; top: 0;
-  width: 8px;
+  width: var(--strip, 8px);
   height: 100%;
 }
 
@@ -388,13 +412,13 @@ h1, h2, h3, h4,
   position: absolute;
   bottom: 0; left: 0;
   width: 100%;
-  height: 8px;
+  height: var(--strip, 8px);
 }
 
 .edge-right .color-strip {
   position: absolute;
   left: 0; top: 0;
-  width: 8px;
+  width: var(--strip, 8px);
   height: 100%;
 }
 
@@ -419,7 +443,7 @@ h1, h2, h3, h4,
 }
 
 .space-icon {
-  font-size: 1.05rem;
+  font-size: clamp(0.8rem, 28cqmin, 1.5rem);
   line-height: 1;
   color: var(--accent-gold);
   text-align: center;
@@ -444,23 +468,28 @@ h1, h2, h3, h4,
 .edge-corner .space-icon { transform: none; writing-mode: horizontal-tb; }
 
 .space-name {
-  font-size: 0.46rem;                            /* fallback if cqmin unsupported */
-  font-size: clamp(0.34rem, 13cqmin, 0.56rem);  /* scales to tile, stays 1 line */
-  font-weight: 700;
+  font-size: 0.62rem;                            /* fallback if cqmin unsupported */
+  font-size: clamp(0.45rem, 24cqmin, 0.85rem);  /* scales with the tile */
   text-align: center;
   color: var(--text-charcoal);
-  line-height: 1.1;
+  line-height: 1.08;
   max-width: 100%;
-  white-space: nowrap;                            /* no mid-word breaks */
-  letter-spacing: 0.01em;
+  white-space: normal;                            /* names may wrap to 2 tidy lines */
+  overflow-wrap: normal;
 }
 
+/* Longer names step down so the longest single word still fits the tile.
+   Tiers are set by board.js from the label's longest word. */
+.space-name.nm-md { font-size: clamp(0.42rem, 19.5cqmin, 0.78rem); }
+.space-name.nm-lg { font-size: clamp(0.4rem, 16cqmin, 0.7rem); letter-spacing: 0.01em; }
+.space-name.nm-xl { font-size: clamp(0.38rem, 14cqmin, 0.62rem); letter-spacing: 0; }
+
 .space-price {
-  font-size: 0.4rem;                             /* fallback if cqmin unsupported */
-  font-size: clamp(0.3rem, 11cqmin, 0.46rem);
+  font-size: 0.48rem;                            /* fallback if cqmin unsupported */
+  font-size: clamp(0.36rem, 14.5cqmin, 0.58rem);
   color: #8a6611;
   font-weight: 700;
-  margin-top: 0.22em;                             /* breathing room from the name */
+  margin-top: 0.18em;                             /* breathing room from the name */
   white-space: nowrap;
 }
 
@@ -471,10 +500,10 @@ h1, h2, h3, h4,
   gap: 3px;
 }
 
-.edge-corner .space-icon { font-size: 1.8rem; }
+.edge-corner .space-icon { font-size: clamp(1.2rem, 30cqmin, 2.3rem); }
 .edge-corner .space-name {
-  font-size: 0.58rem;                            /* fallback if cqmin unsupported */
-  font-size: clamp(0.46rem, 12cqmin, 0.66rem);
+  font-size: 0.72rem;                            /* fallback if cqmin unsupported */
+  font-size: clamp(0.5rem, 13.5cqmin, 0.92rem);
   white-space: normal;     /* short corner names may wrap to 2 tidy lines */
   line-height: 1.15;
 }
@@ -558,6 +587,14 @@ h1, h2, h3, h4,
   flex-direction: column;
   align-items: center;
   gap: 0.15rem;
+}
+
+.center-seal {
+  width: clamp(36px, 7.5vmin, 68px);
+  height: auto;
+  border-radius: 22%;
+  margin-bottom: 0.5rem;
+  box-shadow: 0 4px 12px rgba(27,23,19,0.22);
 }
 
 .center-title-line1 {
@@ -745,34 +782,65 @@ h1, h2, h3, h4,
   border-bottom: 1px solid var(--border);
 }
 
-/* ── Dice — vintage ivory cubes with pips ────────────────── */
+/* ── Dice — true 3D ivory cubes that tumble and land ─────── */
 #diceArea {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 1rem;
+  gap: 1.1rem;
   padding: 1.4rem;
   border-bottom: 1px solid var(--border);
-  perspective: 600px;
+  perspective: 820px;
 }
 
+/* Outer shell — owns the throw arc + cast shadow. The cube spins inside it. */
 .die {
   width: 54px;
   height: 54px;
-  background: linear-gradient(145deg, #FFFFFF 0%, #F8F7F2 55%, #EFEada 100%);
-  border: 1px solid rgba(197,160,89,0.4);
-  border-radius: 14px;
+  position: relative;
+  user-select: none;
+}
+
+.die::after {
+  content: '';
+  position: absolute;
+  left: 6%; right: 6%; bottom: -10px;
+  height: 9px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(26,26,26,0.22), transparent 68%);
+  pointer-events: none;
+}
+
+.die-cube {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transition: transform 1.15s cubic-bezier(0.17, 0.84, 0.28, 1);   /* fast tumble → slow settle */
+  will-change: transform;
+}
+
+/* One of six faces of the cube, each with its own pip layout */
+.die-face {
+  position: absolute;
+  inset: 0;
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   grid-template-rows: repeat(3, 1fr);
   place-items: center;
   padding: 7px;
+  background: linear-gradient(145deg, #FFFFFF 0%, #F8F7F2 55%, #EFEada 100%);
+  border: 1px solid rgba(197,160,89,0.4);
+  border-radius: 12px;
   box-shadow:
     inset 0 2px 4px rgba(255,255,255,0.9),
-    inset 0 -3px 6px rgba(26,26,26,0.1),
-    0 6px 14px rgba(0,0,0,0.12);
-  user-select: none;
+    inset 0 -3px 6px rgba(26,26,26,0.1);
 }
+.die-face.f1 { transform: rotateY(  0deg) translateZ(27px); }
+.die-face.f2 { transform: rotateX( 90deg) translateZ(27px); }
+.die-face.f3 { transform: rotateY( 90deg) translateZ(27px); }
+.die-face.f4 { transform: rotateY(-90deg) translateZ(27px); }
+.die-face.f5 { transform: rotateX(-90deg) translateZ(27px); }
+.die-face.f6 { transform: rotateY(180deg) translateZ(27px); }
 
 /* pip cells — 9-slot grid, lit ones show a charcoal/gold dot */
 .die .pip {
@@ -787,17 +855,35 @@ h1, h2, h3, h4,
   box-shadow: inset 0 1px 1px rgba(255,255,255,0.25), 0 1px 1px rgba(0,0,0,0.2);
 }
 
-.die.rolling {
-  animation: roll-die 0.45s cubic-bezier(0.4, 0.1, 0.3, 1) infinite;
+/* The throw — lift off the felt, hang, drop, one soft bounce, rest. */
+.die.throwing { animation: die-throw 1.15s cubic-bezier(0.34, 0.66, 0.36, 1) both; }
+.die.throwing::after { animation: die-shadow 1.15s cubic-bezier(0.34, 0.66, 0.36, 1) both; }
+
+/* second die trails a beat behind for a natural hand-thrown feel */
+#die2 .die-cube { transition-delay: 60ms; }
+#die2.throwing, #die2.throwing::after { animation-delay: 60ms; }
+
+@keyframes die-throw {
+  0%   { transform: translateY(0)     scale(1); }
+  16%  { transform: translateY(-26px) scale(1.1); }
+  40%  { transform: translateY(-30px) scale(1.13); }
+  68%  { transform: translateY(3px)   scale(1); }
+  80%  { transform: translateY(-8px)  scale(1.04); }
+  91%  { transform: translateY(1px)   scale(0.985); }
+  100% { transform: translateY(0)     scale(1); }
 }
 
-@keyframes roll-die {
-  0%   { transform: rotateX(0deg) rotateY(0deg) scale(1); }
-  25%  { transform: rotateX(180deg) rotateY(90deg) scale(1.08); }
-  50%  { transform: rotateX(360deg) rotateY(180deg) scale(0.96); }
-  75%  { transform: rotateX(180deg) rotateY(270deg) scale(1.08); }
-  100% { transform: rotateX(0deg) rotateY(360deg) scale(1); }
+@keyframes die-shadow {
+  0%   { transform: scale(1);          opacity: 1; }
+  40%  { transform: scale(0.55);       opacity: 0.35; }
+  68%  { transform: scale(1.06);       opacity: 1; }
+  80%  { transform: scale(0.86);       opacity: 0.7; }
+  100% { transform: scale(1);          opacity: 1; }
 }
+
+/* Desktop: the action dock is a transparent wrapper (its children read as
+   direct sidebar rows). On mobile it becomes one card. */
+#actionDock { display: contents; }
 
 /* Action buttons area */
 #actionButtons {
@@ -1347,7 +1433,7 @@ body.automating #board { pointer-events: none; }
 }
 
 /* Dark-mode tweaks for surfaces that used hard-coded near-white */
-[data-theme="dark"] .die {
+[data-theme="dark"] .die-face {
   background: linear-gradient(145deg, #2C342D 0%, #222823 60%, #1A1F1B 100%);
 }
 [data-theme="dark"] .die .pip.on {
@@ -1365,24 +1451,139 @@ body.automating #board { pointer-events: none; }
 [data-theme="dark"] #toast { background: #0E110F; color: var(--text-charcoal); }
 
 /* ── Responsive ──────────────────────────────────────────── */
-@media (max-width: 900px) {
+@media (max-width: 900px) and (min-width: 761px) {
   .sidebar { width: 188px; min-width: 168px; }
 }
 
-@media (max-width: 720px) {
-  #gameScreen { flex-direction: column; gap: 0.6rem; padding: 0.6rem; }
+/* ═══ MOBILE ═════════════════════════════════════════════════
+   One smooth column: utility bar · player strip · board · dice
+   dock · RBI · players & log. The desktop sidebars dissolve
+   (display: contents) so every feature stays reachable. */
+@media (max-width: 760px) {
+
+  /* Setup screen — clear the floating toggles, comfier card */
+  #setupScreen { padding: 4.4rem 1rem 2rem; }
+  .setup-card  { padding: 2rem 1.4rem; }
+
+  #gameScreen {
+    flex-direction: column;
+    gap: 0.55rem;
+    padding: 0.55rem 0.55rem calc(0.7rem + env(safe-area-inset-bottom));
+    height: 100dvh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Dissolve the right sidebar — its rows become column cards below */
+  .sidebar-right { display: contents; }
+
+  /* 0 · utility bar — brand seal + Sound/Dark toggles */
+  #sidebarUtilities.has-controls {
+    order: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.5rem 0.65rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-soft);
+    flex-shrink: 0;
+  }
+  #utilBrand { display: inline-flex; align-items: center; gap: 0.45rem; margin-right: auto; }
+  #sidebarUtilities #muteToggle,
+  #sidebarUtilities #themeToggle { flex: 0 0 auto; }
+
+  /* 1 · current player strip */
+  #currentPlayerStrip {
+    order: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent-gold);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-soft);
+    flex-shrink: 0;
+  }
+
+  /* 2 · the board — full width; ⤢ toggles a pannable close-up */
+  #boardContainer { order: 2; flex: 0 0 auto; padding: 0; overflow: visible; }
+  #boardViewport {
+    display: block;
+    width: 100%;
+    overflow: auto;
+    border-radius: var(--radius-lg);
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+  #board { width: 100%; }
+  #boardContainer.zoomed #boardViewport { height: min(118vw, 68dvh); }
+  #boardContainer.zoomed #board { width: 175vw; max-width: none; }
+
+  #boardZoom {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    right: 0.6rem;
+    bottom: 0.6rem;
+    z-index: 20;
+    width: 2.6rem;
+    height: 2.6rem;
+    border-radius: 50%;
+    border: 1px solid var(--accent-gold);
+    background: var(--surface);
+    color: var(--accent-gold);
+    font-size: 1.15rem;
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    transition: transform 0.12s var(--ease-snappy), background var(--transition), color var(--transition);
+  }
+  #boardZoom:active { transform: scale(0.94); }
+  #boardContainer.zoomed #boardZoom { background: var(--accent-gold); color: #fff; }
+
+  /* board pieces read better slightly smaller on phone tiles */
+  .player-token { width: 13px; height: 13px; }
+
+  /* phase text is redundant with the turn status pill on mobile */
+  #phaseLabel { display: none; }
+
+  /* 3 · dice + action dock — one framed card */
+  #actionDock {
+    order: 3;
+    display: block;
+    background: var(--surface);
+    border: 3px double var(--accent-gold);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    flex-shrink: 0;
+  }
+  #diceArea { padding: 1.15rem; border-bottom: 1px solid var(--border); }
+  #actionButtons { padding: 0.85rem 1rem 1rem; border-bottom: none; }
+  #actionButtons .btn-full { min-height: 2.9rem; }
+  #shortfallPanel { margin: 0 1rem 1rem; }
+
+  /* 4 · RBI tools */
+  #managementTools {
+    order: 4;
+    margin-top: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-soft);
+    flex-shrink: 0;
+  }
+
+  /* 5 · players + game log (the left sidebar as one card) */
   .sidebar {
-    width: 100%; min-width: unset;
-    flex-direction: row;
-    overflow-x: auto;
+    order: 5;
+    width: 100%;
+    min-width: 0;
+    flex: 0 0 auto;
+    flex-direction: column;
+    overflow: visible;
   }
-  #playerPanels { flex-direction: row; overflow-x: auto; }
-  .player-panel { min-width: 150px; }
-  #boardContainer { padding: 0.25rem; }
-  #board {
-    width: min(98vw, 480px);
-    height: min(98vw, 480px);
-  }
+  #playerPanels { flex: 0 0 auto; }
+  #gameLog { height: 150px; }
 }
 
 /* ════════════════════════════════════════════════════════════════════════════
@@ -1443,13 +1644,7 @@ body.automating #board { pointer-events: none; }
   }
 }
 
-/* ── 4 · Dice — settle bounce after the ease-out roll ───────────────────────── */
-.die.settle { animation: die-settle 0.28s var(--ease-out-soft); }
-@keyframes die-settle {
-  0%   { transform: scale(1.14) rotate(-3deg); }
-  55%  { transform: scale(0.97) rotate(1deg); }
-  100% { transform: scale(1) rotate(0deg); }
-}
+/* ── 4 · Dice settle is part of the die-throw arc (see the dice section) ────── */
 
 /* ── 5 · Traveling token (mid-hop) + landing settle ─────────────────────────── */
 .traveling-token {
@@ -1481,6 +1676,33 @@ body.automating #board { pointer-events: none; }
 .bld-inline.office { color: var(--terracotta); }
 .bld-inline.hq     { color: var(--hotel-body); }
 .dev-line { display: flex; align-items: center; gap: 0.3rem; flex-wrap: wrap; }
+
+/* ── 6b · Sidebar utility row — Sound/Dark toggles dock here in-game ─────────
+   main.js moves #muteToggle + #themeToggle into #sidebarUtilities when play
+   starts, so the fixed pills can never overlap the game sidebars. */
+#sidebarUtilities { display: none; }
+#sidebarUtilities.has-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+}
+#utilBrand { display: none; }   /* brand chip is a mobile-topbar affordance */
+#utilBrand img { display: block; border-radius: 6px; }
+#utilBrand span { font-family: var(--font-display); font-size: 0.78rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent-gold); }
+
+#sidebarUtilities #muteToggle,
+#sidebarUtilities #themeToggle {
+  position: static;
+  flex: 1;
+  justify-content: center;
+  box-shadow: none;
+  border-width: 1px;
+  padding: 0.42rem 0.5rem;
+  font-size: 0.62rem;
+  letter-spacing: 0.07em;
+}
 
 /* ── 7 · Mute toggle button (twin of the theme toggle) ──────────────────────── */
 #muteToggle {
@@ -1700,11 +1922,12 @@ body.automating #board { pointer-events: none; }
 
 /* ── 12 · Respect reduced-motion preferences ────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
-  .die.rolling, .die.settle,
+  .die.throwing, .die.throwing::after,
   .player-token.active-token,
   .player-token.just-landed,
   .traveling-token,
   .modal-box, .modal-backdrop.show,
   .deck-pile { animation: none !important; transition: none !important; }
+  .die-cube { transition: none !important; }
   .btn { transition: background-color var(--transition), color var(--transition); }
 }

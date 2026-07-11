@@ -118,10 +118,15 @@ const Board = (() => {
       content.appendChild(icon);
     }
 
-    // Name label
+    // Name label — size tier keyed to the longest word so it always fits the tile
+    const label  = cfg.shortName || cfg.name;
     const nameEl = document.createElement('div');
     nameEl.className = 'space-name';
-    nameEl.textContent = cfg.shortName || cfg.name;
+    const longestWord = label.split(/\s+/).reduce((m, w) => Math.max(m, w.length), 0);
+    if (longestWord >= 10)     nameEl.classList.add('nm-xl');
+    else if (longestWord >= 8) nameEl.classList.add('nm-lg');
+    else if (longestWord >= 6) nameEl.classList.add('nm-md');
+    nameEl.textContent = label;
     content.appendChild(nameEl);
 
     // Price
@@ -238,6 +243,7 @@ const Board = (() => {
       center.style.gridRow    = '2 / 11';
       center.innerHTML = `
         <div class="center-title">
+          <img class="center-seal" src="favicon.svg" alt="" />
           <span class="center-title-line1">South Mumbai</span>
           <span class="center-title-line2">Business Game</span>
         </div>

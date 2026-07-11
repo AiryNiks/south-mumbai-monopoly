@@ -19,8 +19,11 @@ Buy Colaba Causeway, build offices on Marine Drive, charge rent on Nepean Sea Ro
 
 ## ✨ Highlights
 
-- **40-space board** of real South Mumbai landmarks, rendered on an 11×11 CSS grid.
+- **40-space board** of real South Mumbai landmarks, rendered on an 11×11 CSS grid that scales to fill the screen, with condensed Deco tile lettering that stays legible at every size.
+- **Full mobile layout** — on phones the game reflows into a single smooth column (player strip → board → dice dock → RBI → players & log), with a one-tap board magnifier for a pannable close-up. Every desktop feature works on mobile.
+- **True 3D dice** — two ivory cubes that lift off the felt, tumble in 3D, bounce, and settle on the rolled faces.
 - **Heritage player tokens** — Gateway of India, Rajabai Clock Tower, Taj Mahal Palace, and the BSE Building, drawn as crisp inline-SVG monuments.
+- **Art-Deco brand seal** — a gold gateway-and-sunburst medallion (`favicon.svg`) used as the browser-tab icon, setup emblem, and board centerpiece.
 - **Reserve Bank of India** — repo-rate-linked loans, mortgages, a live transaction ledger, and a CRR (cash-reserve) advisory.
 - **Two themed card decks** — *Mumbai Hustle* (Chance) and *Townie Gossip* (Community Chest), 16 cards each.
 - **Automatic turn engine** — roll, move, resolve, and pass play with no manual "end turn"; doubles re-roll, three doubles sends you to Traffic Jam.
@@ -80,7 +83,8 @@ Vanilla **HTML5 + CSS3 + JavaScript** — no dependencies, no build tooling. Sou
 ```
 south-mumbai-monopoly/
 ├── index.html       — entry point (loads everything below)
-├── styles.css       — Art-Deco theme + dark mode, 11×11 grid board
+├── favicon.svg      — Art-Deco brand seal (tab icon + in-game emblem)
+├── styles.css       — Art-Deco theme + dark mode + mobile layout, 11×11 grid board
 ├── audio.js         — Web Audio sound engine (procedural)
 ├── gameConfig.js    — ALL game data: prices, rents, starting cash, board
 ├── cards.js         — Mumbai Hustle & Townie Gossip decks

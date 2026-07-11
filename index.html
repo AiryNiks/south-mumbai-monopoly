@@ -2,13 +2,16 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#F0E9D6" />
   <title>South Mumbai Business Game</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="apple-touch-icon" href="favicon.svg" />
   <link rel="stylesheet" href="styles.css" />
-  <!-- Google Fonts — Poiret One (display) + Montserrat (body/numbers) -->
+  <!-- Google Fonts — Poiret One (display) + Montserrat (body/numbers) + Oswald (board tiles) -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Poiret+One&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Oswald:wght@500;600&family=Poiret+One&display=swap" rel="stylesheet" />
 </head>
 <body>
 
@@ -28,6 +31,7 @@
 <div id="setupScreen">
   <div class="setup-card">
     <div class="setup-logo">
+      <img class="setup-seal" src="favicon.svg" alt="South Mumbai Business Game emblem" width="72" height="72" />
       <h1>South Mumbai Business Game</h1>
       <p>Where Heritage Meets High Stakes Real Estate</p>
     </div>
@@ -71,13 +75,22 @@
 
   <!-- BOARD -->
   <main id="boardContainer">
-    <div id="board">
-      <!-- 40 spaces + center panel built by Board.render() -->
+    <div id="boardViewport">
+      <div id="board">
+        <!-- 40 spaces + center panel built by Board.render() -->
+      </div>
     </div>
+    <!-- Mobile-only board magnifier — toggles a pannable close-up -->
+    <button id="boardZoom" type="button" aria-label="Zoom board" title="Zoom board">⤢</button>
   </main>
 
   <!-- RIGHT SIDEBAR — controls -->
   <aside class="sidebar sidebar-right">
+    <!-- Utility row — the Sound / Dark toggles dock here during play -->
+    <div id="sidebarUtilities">
+      <span id="utilBrand"><img src="favicon.svg" alt="" width="20" height="20" /><span>South Mumbai</span></span>
+    </div>
+
     <!-- Current player strip -->
     <div id="currentPlayerStrip">
       <span class="cp-name">—</span>
@@ -87,29 +100,32 @@
     <!-- Phase label -->
     <div id="phaseLabel">Waiting…</div>
 
-    <!-- Dice -->
-    <div id="diceArea">
-      <div class="die" id="die1" data-face="1"></div>
-      <div class="die" id="die2" data-face="1"></div>
-    </div>
+    <!-- Dice + actions dock (one card on mobile, transparent wrapper on desktop) -->
+    <div id="actionDock">
+      <!-- Dice -->
+      <div id="diceArea">
+        <div class="die" id="die1" data-face="1"></div>
+        <div class="die" id="die2" data-face="1"></div>
+      </div>
 
-    <!-- Action buttons -->
-    <div id="actionButtons">
-      <button id="btnRoll"     class="btn btn-primary btn-full">Roll Dice</button>
-      <button id="btnBail"     class="btn btn-full">Pay ₹5L Bail</button>
-      <button id="btnJailCard" class="btn btn-full">Use Jail-Free Card</button>
-      <!-- Turns end automatically — this status replaces the manual End Turn button -->
-      <div id="turnStatus" class="turn-status" aria-live="polite">Roll the dice to begin</div>
-    </div>
+      <!-- Action buttons -->
+      <div id="actionButtons">
+        <button id="btnRoll"     class="btn btn-primary btn-full">Roll Dice</button>
+        <button id="btnBail"     class="btn btn-full">Pay ₹5L Bail</button>
+        <button id="btnJailCard" class="btn btn-full">Use Jail-Free Card</button>
+        <!-- Turns end automatically — this status replaces the manual End Turn button -->
+        <div id="turnStatus" class="turn-status" aria-live="polite">Roll the dice to begin</div>
+      </div>
 
-    <!-- Shortfall panel -->
-    <div id="shortfallPanel">
-      <h4>Shortfall</h4>
-      <p>You need <strong id="shortfallAmount">₹—</strong> more.</p>
-      <p style="font-size:0.72rem;color:var(--text-muted);margin-top:0.3rem">
-        Click a property you own to mortgage it, sell buildings, or take an RBI loan.
-      </p>
-      <button id="btnGiveUp" class="btn btn-full" style="margin-top:0.5rem">Declare Bankruptcy</button>
+      <!-- Shortfall panel -->
+      <div id="shortfallPanel">
+        <h4>Shortfall</h4>
+        <p>You need <strong id="shortfallAmount">₹—</strong> more.</p>
+        <p style="font-size:0.72rem;color:var(--text-muted);margin-top:0.3rem">
+          Click a property you own to mortgage it, sell buildings, or take an RBI loan.
+        </p>
+        <button id="btnGiveUp" class="btn btn-full" style="margin-top:0.5rem">Declare Bankruptcy</button>
+      </div>
     </div>
 
     <!-- Management tools -->

@@ -59,6 +59,21 @@ const Game = (() => {
       AUDIO.tactile(document.getElementById('btnJailCard'));
     }
 
+    // Mobile board magnifier — toggles a pannable 175vw close-up, centred.
+    const zoomBtn = document.getElementById('boardZoom');
+    if (zoomBtn) {
+      zoomBtn.addEventListener('click', () => {
+        const bc = document.getElementById('boardContainer');
+        const vp = document.getElementById('boardViewport');
+        const zoomed = bc.classList.toggle('zoomed');
+        if (zoomed && vp) {
+          // Reading scroll metrics forces layout, so this centres synchronously.
+          vp.scrollLeft = (vp.scrollWidth - vp.clientWidth) / 2;
+          vp.scrollTop  = (vp.scrollHeight - vp.clientHeight) / 2;
+        }
+      });
+    }
+
     // Sound mute toggle.
     const muteBtn = document.getElementById('muteToggle');
     if (muteBtn) {
@@ -124,8 +139,23 @@ const Game = (() => {
 
     document.getElementById('setupScreen').style.display = 'none';
     document.getElementById('gameScreen').style.display  = 'flex';
+    dockToggles();
     Board.centerAlert(`${GameState.currentPlayer.name} goes first.`);
     setStatus(`${GameState.currentPlayer.name} — roll the dice`);
+  }
+
+  /**
+   * Move the fixed Sound/Dark pills into the sidebar utility row once the game
+   * screen is up, so they can never overlap the sidebars. (The setup screen
+   * keeps them floating top-right, where nothing else lives.)
+   */
+  function dockToggles() {
+    const util = document.getElementById('sidebarUtilities');
+    const mute  = document.getElementById('muteToggle');
+    const theme = document.getElementById('themeToggle');
+    if (!util || !mute || !theme) return;
+    util.append(mute, theme);
+    util.classList.add('has-controls');
   }
 
   // ── Player count selector ─────────────────────────────────────────────────

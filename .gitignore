@@ -16,6 +16,9 @@ Thumbs.db
 npm-debug.log*
 .cache/
 
+# Local agent/tooling state
+.claude/
+
 # Secrets — never commit credentials or tokens
 .env
 .env.*

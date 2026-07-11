@@ -141,7 +141,7 @@ const UI = (() => {
     return map[phase] || phase;
   }
 
-  // ── Dice ──────────────────────────────────────────────────────────────────
+  // ── Dice — true 3D cubes ──────────────────────────────────────────────────
 
   // Pip layout per face — indices into a 3×3 grid (0=top-left … 8=bottom-right).
   const PIP_MAP = {
@@ -153,15 +153,76 @@ const UI = (() => {
     6: [0, 2, 3, 5, 6, 8],
   };
 
-  // Render a vintage-cube face by lighting up the right pips in a 3×3 grid.
-  function renderDieFace(el, face) {
-    const n = Math.max(1, Math.min(6, face | 0));
-    const on = PIP_MAP[n];
-    let html = '';
-    for (let i = 0; i < 9; i++) {
-      html += `<span class="pip${on.includes(i) ? ' on' : ''}"></span>`;
+  // Cube orientation (rotateX/rotateY) that brings each face to the front.
+  // Must match the .die-face.fN transforms in styles.css.
+  const FACE_ROT = {
+    1: { x: 0,   y: 0 },
+    2: { x: -90, y: 0 },
+    3: { x: 0,   y: -90 },
+    4: { x: 0,   y: 90 },
+    5: { x: 90,  y: 0 },
+    6: { x: 0,   y: 180 },
+  };
+
+  const DICE_ROLL_MS = 1150;      // matches the .die-cube transition duration
+  const _dieAngles = {};          // die id → cumulative {x, y} so every roll spins
+
+  /** Build the six-faced cube inside a .die shell (idempotent). */
+  function buildDie(el) {
+    if (!el || el.querySelector('.die-cube')) return;
+    const cube = document.createElement('div');
+    cube.className = 'die-cube';
+    for (let f = 1; f <= 6; f++) {
+      const face = document.createElement('div');
+      face.className = `die-face f${f}`;
+      const on = PIP_MAP[f];
+      let html = '';
+      for (let i = 0; i < 9; i++) {
+        html += `<span class="pip${on.includes(i) ? ' on' : ''}"></span>`;
+      }
+      face.innerHTML = html;
+      cube.appendChild(face);
     }
-    el.innerHTML = html;
+    el.innerHTML = '';
+    el.appendChild(cube);
+    _dieAngles[el.id] = { x: 0, y: 0 };
+  }
+
+  function applyDieTransform(el, instant) {
+    const cube = el.querySelector('.die-cube');
+    const s = _dieAngles[el.id];
+    if (!cube || !s) return;
+    if (instant) {
+      cube.style.transition = 'none';
+      cube.style.transform = `rotateX(${s.x}deg) rotateY(${s.y}deg)`;
+      void cube.offsetWidth;              // flush styles so the next roll animates
+      cube.style.transition = '';
+    } else {
+      cube.style.transform = `rotateX(${s.x}deg) rotateY(${s.y}deg)`;
+    }
+  }
+
+  /** Snap a die to show `face` with no animation (used at game start). */
+  function renderDieFace(el, face) {
+    if (!el) return;
+    buildDie(el);
+    const n = Math.max(1, Math.min(6, face | 0));
+    const R = FACE_ROT[n];
+    _dieAngles[el.id] = { x: R.x, y: R.y };
+    applyDieTransform(el, true);
+    el.dataset.face = String(n);
+  }
+
+  /** Wind the cube forward 2–3 full turns on each axis, landing on `face`. */
+  function spinDieTo(el, face) {
+    buildDie(el);
+    const n = Math.max(1, Math.min(6, face | 0));
+    const R = FACE_ROT[n];
+    const s = _dieAngles[el.id];
+    const wind = () => 360 * (2 + Math.floor(Math.random() * 2));
+    s.x = Math.ceil(s.x / 360) * 360 + wind() + R.x;
+    s.y = Math.ceil(s.y / 360) * 360 + wind() + R.y;
+    applyDieTransform(el, false);
     el.dataset.face = String(n);
   }
 
@@ -170,38 +231,40 @@ const UI = (() => {
     const die2 = document.getElementById('die2');
     if (!die1 || !die2) { callback && callback(); return; }
 
+    buildDie(die1);
+    buildDie(die2);
+
     // Clatter of dice tumbling on a smooth surface.
     if (typeof AUDIO !== 'undefined') AUDIO.play('dice');
 
-    die1.classList.add('rolling');
-    die2.classList.add('rolling');
-
-    // Ease-out: face-switching starts fast and progressively slows, so the roll
-    // naturally decelerates before revealing the final numbers.
-    const delays = [55, 60, 68, 80, 96, 116, 142, 176, 214];
-    let i = 0;
-
-    const settle = () => {
+    // Reduced motion → skip the tumble, reveal the result promptly.
+    const reduced = window.matchMedia
+      && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduced) {
       renderDieFace(die1, d1);
       renderDieFace(die2, d2);
-      die1.classList.remove('rolling');
-      die2.classList.remove('rolling');
-      die1.classList.add('settle');
-      die2.classList.add('settle');
-      setTimeout(() => {
-        die1.classList.remove('settle');
-        die2.classList.remove('settle');
-      }, 280);
-      callback && callback();
-    };
+      setTimeout(() => callback && callback(), 200);
+      return;
+    }
 
-    const step = () => {
-      if (i >= delays.length) { settle(); return; }
-      renderDieFace(die1, Math.ceil(Math.random() * 6));
-      renderDieFace(die2, Math.ceil(Math.random() * 6));
-      setTimeout(step, delays[i++]);
-    };
-    step();
+    // Restart the throw arc, then tumble each cube onto its final face.
+    [die1, die2].forEach(el => {
+      el.classList.remove('throwing');
+      void el.offsetWidth;
+      el.classList.add('throwing');
+    });
+    spinDieTo(die1, d1);
+    spinDieTo(die2, d2);
+
+    // A dry tick as the cubes touch down.
+    setTimeout(() => { if (typeof AUDIO !== 'undefined') AUDIO.play('tick'); },
+               DICE_ROLL_MS - 340);
+
+    setTimeout(() => {
+      die1.classList.remove('throwing');
+      die2.classList.remove('throwing');
+      callback && callback();
+    }, DICE_ROLL_MS + 100);   // +100 covers die2's trailing delay
   }
 
   // ── Space / Property detail modal ─────────────────────────────────────────
