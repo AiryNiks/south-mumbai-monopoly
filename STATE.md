@@ -80,6 +80,31 @@ their correct landed tiles; dice-motion fix confirmed last session). Three fixes
 Verification was DOM/computed-style measurement again (preview-pane screenshots still time out —
 tooling bug, not code); desktop 1366 + mobile 375, no console errors.
 
+## Checkpoint 2026-07-12 (session 5 — full code review + 8 bug fixes)
+Commit 553886e (pushed). Full-project review (security / edge cases / bugs, both versions).
+Logic fixes only — zero visual/CSS changes:
+- **Jail forced-bail double charge** (worst bug): shortfall on the 3rd-turn bail left the player
+  jailed + re-charged every turn. Now: bail releases immediately; the rolled move is deferred via
+  `_pendingJailMove` in main.js and completes when the shortfall clears (resumeAfterPause →
+  continueJailMove).
+- **repayLoan overpay** capped at total owed; NaN/Infinity/negative loan-amount guards.
+- **Collect-from-all cards** (h9/g2): third-party debtors now `bank.autoLiquidate` (sell buildings,
+  mortgage — even-rule waived as a distress sale) and only bankrupt to the drawer if insolvent;
+  drawer's turn phase restored (`settleForcedDebt` in cards.js).
+- **Bankruptcy-to-bank building leak**: office/HQ tokens returned to supply in declareBankruptcy.
+- **Stale doubleRentOnCard** cleared on unowned/self/mortgaged landings.
+- **Pass-GO loan interest** now accrues on card moves (advanceTo) and direct GO landings.
+- **Jail-Free cards return to their deck** on use (provenance in `player.jailFreeDecks`; wired the
+  previously-dead CARDS.returnJailFreeCard).
+- **Dice RNG** `Math.ceil(random()*6)` (could roll 0) → `1+Math.floor(random()*6)`; autoAdvance
+  no-ops after GAME_OVER; Board.refresh on card teleports before buy prompts.
+Verified: 36-assertion Node harness (scratchpad logic-tests.js, all pass) + live browser smoke
+(full turn → buy → auto-advance; forced-bail shortfall → mortgage → deferred move to Fort St →
+auction pass-out → next turn; zero console errors). Preview-pane screenshots still time out
+(known tooling bug) — verification was DOM/state-based as in sessions 3–4.
+Known non-bugs left as-is: `pendingReroll` state + `btnEndTurn` lookup are dead code;
+no rate-limit surface exists (static site, no APIs).
+
 ## Next candidates (not committed to)
 - Real property photos in `images/` (config already points at paths).
 - Following the token with auto-scroll while the mobile board is zoomed.
