@@ -20,9 +20,7 @@ const TurnPhase = Object.freeze({
   SETUP:           'SETUP',           // pre-game lobby
   WAITING_ROLL:    'WAITING_ROLL',    // player must roll
   ANIMATING:       'ANIMATING',       // dice/token animation in progress
-  SPACE_ACTION:    'SPACE_ACTION',    // evaluating landed space
   BUY_DECISION:    'BUY_DECISION',    // player choosing buy / auction
-  JAIL_DECISION:   'JAIL_DECISION',   // player in jail choosing action
   AWAITING_PAY:    'AWAITING_PAY',    // player must pay but is short on cash
   CAN_END_TURN:    'CAN_END_TURN',    // action done; player may end turn
   GAME_OVER:       'GAME_OVER',
@@ -86,7 +84,6 @@ const GameState = (() => {
         shortfallAmount:   0,   // how much the current player owes beyond their cash
         shortfallCreditor: null, // player id or null (bank)
         auctionPosition:   null, // position being auctioned
-        pendingReroll:     false, // whether current player rolled doubles before a buy/auction decision
         // ── RBI economy ──────────────────────────────────────────────────────
         ledger:            [],   // transaction records (capped at GAME_CONFIG.LEDGER_MAX)
         _txnSeq:           0,    // monotonically increasing ledger id
@@ -119,8 +116,6 @@ const GameState = (() => {
     set shortfallCreditor(v){ _state.shortfallCreditor = v; },
     get auctionPosition()  { return _state.auctionPosition; },
     set auctionPosition(v) { _state.auctionPosition = v; },
-    get pendingReroll()    { return _state.pendingReroll; },
-    set pendingReroll(v)   { _state.pendingReroll = v; },
     get ledger()           { return _state.ledger; },
     get repoRate()         { return _state.repoRate; },
     set repoRate(v)        { _state.repoRate = v; },

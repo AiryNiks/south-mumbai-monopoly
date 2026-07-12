@@ -102,8 +102,20 @@ Verified: 36-assertion Node harness (scratchpad logic-tests.js, all pass) + live
 (full turn → buy → auto-advance; forced-bail shortfall → mortgage → deferred move to Fort St →
 auction pass-out → next turn; zero console errors). Preview-pane screenshots still time out
 (known tooling bug) — verification was DOM/state-based as in sessions 3–4.
-Known non-bugs left as-is: `pendingReroll` state + `btnEndTurn` lookup are dead code;
-no rate-limit surface exists (static site, no APIs).
+No rate-limit surface exists (static site, no APIs).
+
+## Checkpoint 2026-07-12 (session 5b — dead-code cleanup + secrets audit)
+- **Dead code removed** (verified unused via grep + tests + live smoke): `pendingReroll` state,
+  `btnEndTurn` lookup (ui.js), unused `TurnPhase.SPACE_ACTION`/`JAIL_DECISION` + their phaseLabel
+  entries, `showLoanDialog` alias, unused `renderDieFace` export (function kept, internal),
+  `HOP_MS` const in main.js (Board owns the real one), `wait()` + `HOP_MS` export in board.js.
+- **Secrets audit — CLEAN**: full-history `git grep` (all 27 commits, every blob incl. deleted
+  `game.js` / `push-to-github.bat` / empty `CAN_END_TURN`) found zero keys/tokens/credentials.
+  Only exposure = commit author emails (aryannikalje07@gmail.com on pre-July commits made via
+  GitHub web upload; fifafiesta26@gmail.com on July 11–12 local commits). Repo-local git identity
+  now set to `221935748+AiryNiks@users.noreply.github.com` so no future commit leaks an email.
+  Scrubbing the OLD emails would need a full history rewrite + force-push (destructive) — offered
+  to Aryan, not done unilaterally.
 
 ## Next candidates (not committed to)
 - Real property photos in `images/` (config already points at paths).

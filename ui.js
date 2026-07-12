@@ -102,12 +102,10 @@ const UI = (() => {
 
     // Update dice button state
     const rollBtn   = document.getElementById('btnRoll');
-    const endBtn    = document.getElementById('btnEndTurn');
     const bailBtn   = document.getElementById('btnBail');
     const cardBtn   = document.getElementById('btnJailCard');
 
     if (rollBtn) rollBtn.disabled  = phase !== TurnPhase.WAITING_ROLL;
-    if (endBtn)  endBtn.disabled   = phase !== TurnPhase.CAN_END_TURN;
     if (bailBtn) bailBtn.style.display = (cp.inJail && phase === TurnPhase.WAITING_ROLL) ? 'inline-flex' : 'none';
     if (cardBtn) cardBtn.style.display = (cp.inJail && cp.jailFreeCards > 0 && phase === TurnPhase.WAITING_ROLL) ? 'inline-flex' : 'none';
 
@@ -131,9 +129,7 @@ const UI = (() => {
     const map = {
       [TurnPhase.WAITING_ROLL]:  'Roll the dice',
       [TurnPhase.ANIMATING]:     'Moving…',
-      [TurnPhase.SPACE_ACTION]:  'Action',
       [TurnPhase.BUY_DECISION]:  'Buy or Auction?',
-      [TurnPhase.JAIL_DECISION]: 'Detained',
       [TurnPhase.AWAITING_PAY]:  'Payment due',
       [TurnPhase.CAN_END_TURN]:  'End turn',
       [TurnPhase.GAME_OVER]:     'Game Over',
@@ -767,9 +763,6 @@ const UI = (() => {
     }
   }
 
-  /** Backward-compatible alias — the old loan dialog now opens the RBI modal. */
-  function showLoanDialog() { showRBI(); }
-
   // ── Player detail modal ───────────────────────────────────────────────────
 
   function showPlayerDetail(idx) {
@@ -893,7 +886,6 @@ const UI = (() => {
     toast,
     appendLog,
     animateDice,
-    renderDieFace,
     initDice() {
       const d1 = document.getElementById('die1');
       const d2 = document.getElementById('die2');
@@ -904,7 +896,6 @@ const UI = (() => {
     showBuyDecision,
     showAuction,
     showCard,
-    showLoanDialog,
     showRBI,
     onLedgerUpdate,
     refreshRepoChip,

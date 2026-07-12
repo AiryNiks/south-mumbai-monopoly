@@ -170,7 +170,6 @@ const Game = (() => {
 
   const AUTO_ADVANCE_MS = 1500;   // UX pause before passing to the next player
   const CARD_READ_MS    = 4000;   // longer pause so a drawn card can be read first
-  const HOP_MS          = 130;    // per-tile token hop duration
 
   let _pendingCardRead = false;   // a Chance/Chest card was just shown — hold longer
 

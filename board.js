@@ -213,13 +213,10 @@ const Board = (() => {
     });
   }
 
-  function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
-
   // ── Public render function ────────────────────────────────────────────────
 
   return {
 
-    HOP_MS,
     /**
      * Build the entire board DOM and insert into #board.
      * Call once at game start.
