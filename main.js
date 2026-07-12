@@ -178,6 +178,7 @@ const Game = (() => {
   let _advanceTimer = null;       // the pending auto-advance (pass-turn) timer
   let _tileResolve  = null;       // resolver for the in-flight resolveTileAction()
   let _auction      = null;       // active turn-by-turn auction state (see startAuction)
+  let _pendingJailMove = 0;       // steps still owed after a forced-bail shortfall clears
 
   /** Cancel a pending auto-advance timer (called on reset / re-entry). */
   function clearAdvanceTimer() {
@@ -285,8 +286,31 @@ const Game = (() => {
   function resumeAfterPause() {
     const ph = GameState.turnPhase;
     if (ph !== TurnPhase.CAN_END_TURN && ph !== TurnPhase.GAME_OVER) return;
+    // A forced jail bail was charged but the move was deferred until the
+    // shortfall cleared — the player already paid, so they still get their roll.
+    if (_pendingJailMove > 0 && ph === TurnPhase.CAN_END_TURN &&
+        GameState.currentPlayer.status === 'active') {
+      const steps = _pendingJailMove;
+      _pendingJailMove = 0;
+      continueJailMove(steps);
+      return;
+    }
+    _pendingJailMove = 0;
     if (_tileResolve) { setAutomating(true); _tileResolve(); }
     else              { autoAdvance(); }
+  }
+
+  /** Complete the deferred post-bail move once the shortfall is settled. */
+  async function continueJailMove(steps) {
+    const cp = GameState.currentPlayer;
+    setAutomating(true);
+    GameState.turnPhase = TurnPhase.ANIMATING;
+    setStatus('Moving…');
+    await doMovement(cp, steps);
+    Board.refresh(); UI.refresh();
+    setStatus('Resolving the square…');
+    await resolveTileAction(cp);
+    await finishResolved(cp, false);
   }
 
   // ── Dice roll — async entry point (still triggered manually per player) ────
@@ -303,8 +327,8 @@ const Game = (() => {
     UI.hideShortfallPanel();
     setAutomating(true);
 
-    const d1 = Math.ceil(Math.random() * 6);
-    const d2 = Math.ceil(Math.random() * 6);
+    const d1 = 1 + Math.floor(Math.random() * 6);
+    const d2 = 1 + Math.floor(Math.random() * 6);
     const total = d1 + d2;
     const isDoubles = d1 === d2;
 
@@ -357,8 +381,15 @@ const Game = (() => {
     if (cp.jailTurns >= 3) {
       GameState.log(`${cp.name} must pay bail after 3 turns in Traffic Jam.`);
       const result = bank.pay(cp, null, GAME_CONFIG.JAIL_BAIL, GameState);
+      // The bail has been charged either way — release the player now, or a
+      // shortfall here would leave them jailed AND charged again next turn.
+      cp.inJail = false; cp.jailTurns = 0;
+      GameState.recordTxn({
+        category: 'system', tone: 'debit', amount: GAME_CONFIG.JAIL_BAIL,
+        desc: `${cp.name} paid Traffic Jam bail (forced after 3 turns)`,
+        parties: [{ id: cp.id, delta: -GAME_CONFIG.JAIL_BAIL }],
+      });
       if (result.ok) {
-        cp.inJail = false; cp.jailTurns = 0;
         setStatus('Moving…');
         await doMovement(cp, total);
         Board.refresh(); UI.refresh();
@@ -367,6 +398,7 @@ const Game = (() => {
         await finishResolved(cp, false);
       } else {
         if (tryAutoBankrupt()) { await finishResolved(cp, false); return; }
+        _pendingJailMove = total;          // finish the move once the debt clears
         UI.showShortfallPanel(cp, GameState.shortfallAmount);
         setStatus('Action required — settle the shortfall');
         setAutomating(false);              // paused; resumeAfterPause() handles it
@@ -404,6 +436,11 @@ const Game = (() => {
 
   /** Wait the UX delay, then hand the turn to the next active player. */
   async function autoAdvance() {
+    if (GameState.turnPhase === TurnPhase.GAME_OVER) {
+      setAutomating(false);
+      setStatus('Game over');
+      return;
+    }
     clearAdvanceTimer();
     setAutomating(true);
     // Give players time to read a freshly drawn card before the modal is dismissed.
@@ -440,8 +477,10 @@ const Game = (() => {
 
       case 'corner':
         if (space.subtype === 'go') {
-          // Landed directly on GO — collect salary
+          // Landed directly on GO — collect salary (and accrue loan interest,
+          // exactly as when passing GO mid-move)
           bank.pay(null, player, GAME_CONFIG.GO_SALARY, GameState);
+          bank.chargePassGoInterest(player, GameState);
           GameState.recordTxn({
             category: 'system', tone: 'credit', amount: GAME_CONFIG.GO_SALARY,
             desc: `${player.name} landed on GO — salary collected`,
@@ -467,6 +506,8 @@ const Game = (() => {
         CARDS.drawHustle(player, GameState, bank, UI);
         if (GameState.pendingSpaceAction) {
           GameState.pendingSpaceAction = false;
+          _pendingCardRead = true;      // the read-pause applies after the follow-up landing too
+          Board.refresh();              // show the token at its card-moved position
           executeSpaceAction(player);   // card moved the player — re-evaluate
           return;
         }
@@ -478,6 +519,8 @@ const Game = (() => {
         CARDS.drawGossip(player, GameState, bank, UI);
         if (GameState.pendingSpaceAction) {
           GameState.pendingSpaceAction = false;
+          _pendingCardRead = true;
+          Board.refresh();
           executeSpaceAction(player);
           return;
         }
@@ -532,20 +575,26 @@ const Game = (() => {
     if (!ps) { afterSpaceAction(player); return; }
 
     if (ps.owner === null) {
+      // No rent happened — drop any card-issued double-rent flag so it can't
+      // leak onto an unrelated rent later in the same turn (doubles re-roll).
+      GameState.doubleRentOnCard = false;
       // Unowned → PAUSE the auto-advance and wait for Buy / Auction / decline.
       GameState.turnPhase = TurnPhase.BUY_DECISION;
+      Board.refresh();
       UI.refresh();
       UI.showBuyDecision(space.position);
       return;
     }
 
     if (ps.owner === player.id) {
+      GameState.doubleRentOnCard = false;
       GameState.log(`${player.name} landed on their own property — no rent.`);
       afterSpaceAction(player);
       return;
     }
 
     if (ps.mortgaged) {
+      GameState.doubleRentOnCard = false;
       GameState.log(`${space.name} is mortgaged — no rent collected.`);
       afterSpaceAction(player);
       return;

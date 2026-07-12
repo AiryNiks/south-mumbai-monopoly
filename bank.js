@@ -243,10 +243,10 @@ class Bank {
     const loans = player.loans || [];
     if (loans.length >= GAME_CONFIG.MAX_LOANS)
       return gs.err(`You already have ${GAME_CONFIG.MAX_LOANS} active loans.`);
+    if (!Number.isFinite(amount) || amount <= 0)
+      return gs.err('Loan amount must be positive.');
     if (amount > GAME_CONFIG.MAX_LOAN_AMOUNT)
       return gs.err(`Max loan amount is ₹${GAME_CONFIG.MAX_LOAN_AMOUNT}L.`);
-    if (amount <= 0)
-      return gs.err('Loan amount must be positive.');
 
     // Lock the interest rate at the repo rate prevailing when the loan is taken —
     // so timing your borrowing against the RBI Repo Rate genuinely matters.
@@ -269,6 +269,10 @@ class Bank {
   repayLoan(player, amount, gs) {
     const loans = player.loans || [];
     if (loans.length === 0) return gs.err('You have no active loans.');
+    if (!Number.isFinite(amount) || amount <= 0) return gs.err('Enter a valid repayment amount.');
+    // Never collect more than is actually owed — cap the payment at the total debt.
+    const totalOwed = loans.reduce((s, l) => s + l.principal + l.interest, 0);
+    amount = Math.min(amount, totalOwed);
     if (player.cash < amount) return gs.err(`Need ₹${amount}L. You have ₹${player.cash}L.`);
 
     let remaining = amount;
@@ -317,6 +321,50 @@ class Bank {
         desc: `RBI loan interest accrued for ${player.name}`,
         parties: [{ id: player.id, delta: -totalInterest }],
       });
+    }
+  }
+
+  // ── Forced settlement ──────────────────────────────────────────────────────
+
+  /**
+   * Forcibly raise cash for a player who owes money outside their own turn
+   * (e.g. a card makes every opponent pay the drawer — they can never reach the
+   * shortfall UI on someone else's turn). Sells buildings back at half price,
+   * then mortgages properties, until cash ≥ 0 or nothing is left to liquidate.
+   * The even-building rule is waived — this is a distress sale.
+   */
+  autoLiquidate(player, gs) {
+    const props = (player.properties || []).slice();
+    // 1. Sell buildings back (HQ first, then offices).
+    for (const pos of props) {
+      if (player.cash >= 0) break;
+      const ps  = gs.propertyState[pos];
+      const cfg = GAME_CONFIG.getSpace(pos);
+      const grp = cfg ? GAME_CONFIG.COLOR_GROUPS[cfg.color] : null;
+      if (!ps || !grp || !ps.buildings) continue;
+      if (ps.buildings === 5) {
+        this.pay(null, player, Math.floor(grp.hqCost / 2), gs);
+        ps.buildings = 4;
+        this.hqAvailable += 1;
+        this.officesAvailable = Math.max(0, this.officesAvailable - 4);
+      }
+      while (player.cash < 0 && ps.buildings > 0) {
+        this.pay(null, player, Math.floor(grp.officeCost / 2), gs);
+        ps.buildings -= 1;
+        this.officesAvailable += 1;
+      }
+    }
+    // 2. Mortgage whatever is still unmortgaged.
+    for (const pos of props) {
+      if (player.cash >= 0) break;
+      const ps  = gs.propertyState[pos];
+      const cfg = GAME_CONFIG.getSpace(pos);
+      if (!ps || ps.mortgaged || ps.buildings > 0 || !cfg || !cfg.mortgage) continue;
+      ps.mortgaged = true;
+      this.pay(null, player, cfg.mortgage, gs);
+    }
+    if (player.cash >= 0) {
+      gs.log(`${player.name} liquidated assets to settle the debt.`);
     }
   }
 

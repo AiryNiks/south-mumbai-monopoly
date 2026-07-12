@@ -58,6 +58,7 @@ const GameState = (() => {
       properties:    [],      // positions owned
       loans:         [],      // [{principal, interest}]
       jailFreeCards: 0,
+      jailFreeDecks: [],      // which deck each held Jail-Free card came from
       inJail:        false,
       jailTurns:     0,       // turns served (max 3 before forced pay)
       skipTurns:     0,       // card-induced turn skips
@@ -341,6 +342,10 @@ const GameState = (() => {
           ps.owner = creditorPlayer.id;
           creditorPlayer.properties.push(pos);
         } else {
+          // Return this estate's building tokens to the bank supply before wiping it,
+          // otherwise the finite office/HQ pool leaks tokens every bank-side bankruptcy.
+          if (bank && ps.buildings === 5)     bank.hqAvailable      += 1;
+          else if (bank && ps.buildings > 0)  bank.officesAvailable += ps.buildings;
           ps.owner     = null;
           ps.mortgaged = false;
           ps.buildings = 0;
@@ -417,6 +422,9 @@ const GameState = (() => {
         if (!player.jailFreeCards || player.jailFreeCards < 1)
           return this.err('No Get Out of Jail Free card.');
         player.jailFreeCards--;
+        // Return the used card to the bottom of the deck it was drawn from.
+        const deck = (player.jailFreeDecks || []).shift();
+        if (deck && typeof CARDS !== 'undefined') CARDS.returnJailFreeCard(deck);
         player.inJail    = false;
         player.jailTurns = 0;
         this.log(`${player.name} used a Jail Free card!`);

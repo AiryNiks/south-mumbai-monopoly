@@ -33,9 +33,28 @@ const CARDS = (() => {
     const oldPos = player.position;
     player.position = position;
     if (position < oldPos) {
-      // Passed GO
+      // Passed GO — salary plus the same loan-interest accrual as a rolled pass.
       bank.pay(null, player, GAME_CONFIG.GO_SALARY, gameState);
+      bank.chargePassGoInterest(player, gameState);
       gameState.log(`${player.name} passed GO — collected ₹${GAME_CONFIG.GO_SALARY}L`);
+    }
+  }
+
+  /**
+   * Settle a debt a card forced onto a NON-current player (they can never reach
+   * the shortfall UI on someone else's turn). Auto-liquidates their assets; if
+   * even that can't cover it, they go bankrupt with the drawer as creditor.
+   * Restores the turn phase so a third party's debt never hijacks the drawer's
+   * turn state machine.
+   */
+  function settleForcedDebt(debtor, creditor, gs, bank) {
+    if (debtor.cash >= 0) return;
+    bank.autoLiquidate(debtor, gs);
+    if (debtor.cash < 0) gs.declareBankruptcy(debtor, bank, creditor);
+    if (gs.turnPhase === TurnPhase.AWAITING_PAY) {
+      gs.shortfallAmount   = 0;
+      gs.shortfallCreditor = null;
+      gs.turnPhase         = TurnPhase.ANIMATING;
     }
   }
 
@@ -154,7 +173,10 @@ const CARDS = (() => {
         text: 'Your property managers gifted you ₹20L each. Collect from every other player.',
         action(player, gs, bank, ui) {
           const others = gs.players.filter(p => p !== player && p.status === 'active');
-          others.forEach(other => bank.pay(other, player, 20, gs));
+          others.forEach(other => {
+            bank.pay(other, player, 20, gs);
+            settleForcedDebt(other, player, gs, bank);
+          });
           gs.log(`${player.name} collected Diwali bonuses: ₹${20 * others.length}L total.`);
           ui.toast(`Diwali! +₹${20 * others.length}L from opponents`);
         },
@@ -255,7 +277,10 @@ const CARDS = (() => {
         text: 'You hosted a successful gallery show at Kala Ghoda. Collect ₹20L from each player.',
         action(player, gs, bank, ui) {
           const others = gs.players.filter(p => p !== player && p.status === 'active');
-          others.forEach(other => bank.pay(other, player, 20, gs));
+          others.forEach(other => {
+            bank.pay(other, player, 20, gs);
+            settleForcedDebt(other, player, gs, bank);
+          });
           gs.log(`${player.name} collected ₹20L from each player — art exhibition success!`);
           ui.toast(`Art exhibition! +₹${20 * others.length}L`);
         },
@@ -451,6 +476,7 @@ const CARDS = (() => {
       const card = hustleDeck.shift();
       // Jail-Free cards stay with player, not returned to deck until used
       if (!card.isJailFree) hustleDeck.push(card);
+      else { player.jailFreeDecks = player.jailFreeDecks || []; player.jailFreeDecks.push('hustle'); }
       ui.showCard('Mumbai Hustle', card);
       const before = gameState.players.map(p => p.cash);
       card.action(player, gameState, bank, ui);
@@ -463,6 +489,7 @@ const CARDS = (() => {
       if (gossipDeck.length === 0) gossipDeck = shuffle(buildGossipDeck());
       const card = gossipDeck.shift();
       if (!card.isJailFree) gossipDeck.push(card);
+      else { player.jailFreeDecks = player.jailFreeDecks || []; player.jailFreeDecks.push('gossip'); }
       ui.showCard('Townie Gossip', card);
       const before = gameState.players.map(p => p.cash);
       card.action(player, gameState, bank, ui);
